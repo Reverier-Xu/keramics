@@ -11,6 +11,7 @@
  * under the License.
  */
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use keramics_core::{DataStreamReference, ErrorTrace};
@@ -666,7 +667,22 @@ impl VfsFileSystem {
                 };
                 Ok(Some(VfsFileEntry::Ntfs(ntfs_file_entry)))
             }
-            VfsFileSystem::Os => todo!(),
+            VfsFileSystem::Os => {
+                let path_buf: PathBuf = PathBuf::from("/");
+
+                let mut os_file_entry: OsFileEntry = OsFileEntry::new();
+
+                match os_file_entry.open(&path_buf) {
+                    Ok(_) => {}
+                    Err(error) => {
+                        return Err(keramics_core::error_trace_new_with_error!(
+                            "Unable to open OS root directory",
+                            error
+                        ));
+                    }
+                }
+                Ok(Some(VfsFileEntry::Os(os_file_entry)))
+            }
             VfsFileSystem::Qcow(qcow_file_system) => {
                 let qcow_file_entry: QcowFileEntry = match qcow_file_system.get_root_file_entry() {
                     Ok(file_entry) => file_entry,
@@ -1194,18 +1210,20 @@ mod tests {
         Ok(())
     }
 
-    // Tests with fake.
+    // Tests with FAKE.
 
     fn get_fake_file_system() -> Result<VfsFileSystem, ErrorTrace> {
         let mut vfs_file_system: VfsFileSystem = VfsFileSystem::new(&VfsType::Fake);
         if let VfsFileSystem::Fake(fake_file_system) = &mut vfs_file_system {
+            let vfs_path: VfsPath = VfsPath::from_path(&VfsType::Fake, "/");
+
             let data: [u8; 4] = [1, 2, 3, 4];
-            let fake_file_entry: FakeFileEntry = FakeFileEntry::new_file(&data);
-            _ = fake_file_system.add_file_entry("/fake1", fake_file_entry);
+            let fake_file_entry: FakeFileEntry = FakeFileEntry::new_file("fake1", &data);
+            _ = fake_file_system.add_file_entry(&vfs_path, fake_file_entry);
 
             let data: [u8; 4] = [5, 6, 7, 8];
-            let fake_file_entry: FakeFileEntry = FakeFileEntry::new_file(&data);
-            _ = fake_file_system.add_file_entry("/fake2", fake_file_entry);
+            let fake_file_entry: FakeFileEntry = FakeFileEntry::new_file("fake2", &data);
+            _ = fake_file_system.add_file_entry(&vfs_path, fake_file_entry);
         }
         Ok(vfs_file_system)
     }
