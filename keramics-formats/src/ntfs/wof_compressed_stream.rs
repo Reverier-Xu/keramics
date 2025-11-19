@@ -64,8 +64,8 @@ impl NtfsWofCompressedStream {
         Self {
             mediator: Mediator::current(),
             data_stream: None,
-            cluster_block_size: cluster_block_size,
-            compression_method: compression_method,
+            cluster_block_size,
+            compression_method,
             compression_unit_size: 0,
             compressed_size: 0,
             current_offset: 0,
@@ -201,7 +201,7 @@ impl NtfsWofCompressedStream {
                     }
                     self.block_cache.insert(block_offset, data);
                 }
-                let block_data: &Vec<u8> = match self.block_cache.get(&block_offset) {
+                let block_data: &[u8] = match self.block_cache.get(&block_offset) {
                     Some(data) => data,
                     None => {
                         return Err(keramics_core::error_trace_new!(
@@ -341,7 +341,7 @@ impl NtfsWofCompressedStream {
         }
         if self.mediator.debug_output {
             self.mediator
-                .debug_print(format!("NtfsWofCompressedBlockOffsets {{\n",));
+                .debug_print(String::from("NtfsWofCompressedBlockOffsets {\n"));
             self.mediator.debug_print(
                 self.block_offsets
                     .iter()
@@ -349,7 +349,7 @@ impl NtfsWofCompressedStream {
                     .collect::<Vec<String>>()
                     .join("\n"),
             );
-            self.mediator.debug_print(format!("\n}}\n\n"));
+            self.mediator.debug_print(String::from("\n}\n\n"));
         }
         Ok(())
     }

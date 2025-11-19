@@ -40,7 +40,7 @@ impl ExtDirectoryTree {
         Self {
             mediator: Mediator::current(),
             encoding: encoding.clone(),
-            block_size: block_size,
+            block_size,
         }
     }
 
@@ -48,7 +48,7 @@ impl ExtDirectoryTree {
     pub fn read_block_data(
         &mut self,
         data_stream: &DataStreamReference,
-        block_ranges: &Vec<ExtBlockRange>,
+        block_ranges: &[ExtBlockRange],
         entries: &mut BTreeMap<ByteString, ExtDirectoryEntry>,
     ) -> Result<(), ErrorTrace> {
         for block_range in block_ranges.iter() {
@@ -100,12 +100,13 @@ impl ExtDirectoryTree {
         let parent_inode_number: u32 = bytes_to_u32_le!(data, 0);
 
         if self.mediator.debug_output {
-            self.mediator.debug_print(format!("ExtDirectoryTree {{\n"));
+            self.mediator
+                .debug_print(String::from("ExtDirectoryTree {\n"));
             self.mediator.debug_print(format!(
                 "    parent_inode_number: {},\n",
                 parent_inode_number
             ));
-            self.mediator.debug_print(format!("}}\n\n"));
+            self.mediator.debug_print(String::from("}\n\n"));
         }
         self.read_node_data(&data, 4, data_size, entries)
     }
@@ -229,7 +230,7 @@ mod tests {
 
         let mut test_struct = ExtDirectoryTree::new(&CharacterEncoding::Utf8, 256);
 
-        let block_ranges: &Vec<ExtBlockRange> = &vec![ExtBlockRange {
+        let block_ranges: Vec<ExtBlockRange> = vec![ExtBlockRange {
             logical_block_number: 0,
             physical_block_number: 0,
             number_of_blocks: 1,

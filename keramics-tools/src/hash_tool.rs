@@ -90,7 +90,7 @@ impl HashTool {
             digest_hasher: DigestHasher::new(digest_hash_type),
             display_path: DisplayPath::new(display_path_type),
             digest_hash_type: digest_hash_type.clone(),
-            stop_on_error: stop_on_error,
+            stop_on_error,
         }
     }
 
@@ -164,7 +164,7 @@ impl HashTool {
         &self,
         file_entry: &VfsFileEntry,
         file_system_display_path: &String,
-        path_components: &Vec<VfsString>,
+        path_components: &[VfsString],
     ) -> Result<(), ErrorTrace> {
         let display_path: String = self.display_path.join_path_components(path_components);
 

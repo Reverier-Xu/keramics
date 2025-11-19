@@ -44,8 +44,8 @@ impl HuffmanTree {
         let maximum_code_size: usize = largest_code_size + 1;
         Self {
             mediator: Mediator::current(),
-            largest_code_size: largest_code_size,
-            maximum_code_size: maximum_code_size,
+            largest_code_size,
+            maximum_code_size,
             symbols: vec![0; number_of_symbols],
             code_size_counts: vec![0; maximum_code_size],
         }
@@ -98,7 +98,7 @@ impl HuffmanTree {
         }
         */
         if self.mediator.debug_output {
-            self.mediator.debug_print(format!("HuffmanTree {{\n",));
+            self.mediator.debug_print(String::from("HuffmanTree {\n"));
         }
         // Calculate the offsets to sort the symbols per code size.
         let mut symbol_offsets: Vec<isize> = Vec::new();
@@ -136,7 +136,7 @@ impl HuffmanTree {
             }
         }
         if self.mediator.debug_output {
-            self.mediator.debug_print(format!("}}\n\n",));
+            self.mediator.debug_print(String::from("}\n\n"));
         }
         Ok(())
     }

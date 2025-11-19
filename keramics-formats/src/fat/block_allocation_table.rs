@@ -52,10 +52,10 @@ impl FatBlockAllocationTable {
         Self {
             mediator: Mediator::current(),
             format: format.clone(),
-            offset: offset,
-            number_of_entries: number_of_entries,
-            first_cluster_offset: first_cluster_offset,
-            cluster_block_size: cluster_block_size,
+            offset,
+            number_of_entries,
+            first_cluster_offset,
+            cluster_block_size,
         }
     }
 
@@ -112,7 +112,7 @@ impl FatBlockAllocationTable {
         };
         if self.mediator.debug_output {
             self.mediator
-                .debug_print(format!("FatBlockAllocationTableEntry: {{\n"));
+                .debug_print(String::from("FatBlockAllocationTableEntry: {\n"));
             self.mediator
                 .debug_print(format!("    entry_index: {},\n", entry_index));
             self.mediator.debug_print(format!(
@@ -122,7 +122,7 @@ impl FatBlockAllocationTable {
             ));
             self.mediator
                 .debug_print(format!("    cluster_block_number: {},\n", entry));
-            self.mediator.debug_print(format!("}}\n"));
+            self.mediator.debug_print(String::from("}\n"));
         }
         Ok(entry)
     }

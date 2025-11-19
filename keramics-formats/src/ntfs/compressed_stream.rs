@@ -63,7 +63,7 @@ impl NtfsCompressedStream {
         Self {
             mediator: Mediator::current(),
             data_stream: None,
-            cluster_block_size: cluster_block_size,
+            cluster_block_size,
             block_tree: BlockTree::<NtfsCompressionRange>::new(0, 0, 0),
             compression_unit_size: 0,
             block_cache: LruCache::new(8),
@@ -309,7 +309,7 @@ impl NtfsCompressedStream {
                             }
                             self.block_cache.insert(range_offset, block_data);
                         }
-                        let block_data: &Vec<u8> = match self.block_cache.get(&range_offset) {
+                        let block_data: &[u8] = match self.block_cache.get(&range_offset) {
                             Some(data) => data,
                             None => {
                                 return Err(keramics_core::error_trace_new!(

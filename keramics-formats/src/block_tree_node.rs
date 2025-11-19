@@ -45,8 +45,8 @@ impl<T> BlockTreeNode<T> {
     pub fn new(node_type: &BlockTreeNodeType, offset: u64, element_size: u64) -> Self {
         BlockTreeNode {
             node_type: node_type.clone(),
-            offset: offset,
-            element_size: element_size,
+            offset,
+            element_size,
             sub_nodes: Vec::new(),
             values: Vec::new(),
         }
@@ -114,7 +114,7 @@ impl<T> BlockTreeNode<T> {
 
             for value_index in first_value_index..last_value_index {
                 if self.values[value_index as usize].is_some() {
-                    return Err(InsertError::new(format!("Leaf value already set")));
+                    return Err(InsertError::new(String::from("Leaf value already set")));
                 }
                 self.values[value_index as usize] = Some(value.clone());
             }

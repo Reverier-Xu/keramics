@@ -33,8 +33,8 @@ impl VfsFinderState {
     /// Creates a new iterator.
     fn new(file_entry: VfsFileEntry, number_of_sub_file_entries: usize) -> Self {
         Self {
-            file_entry: file_entry,
-            number_of_sub_file_entries: number_of_sub_file_entries,
+            file_entry,
+            number_of_sub_file_entries,
             sub_file_entry_index: 0,
         }
     }
@@ -61,7 +61,7 @@ impl<'a> VfsFinder<'a> {
     /// Creates a new finder.
     pub fn new(file_system: &'a VfsFileSystem) -> Self {
         Self {
-            file_system: file_system,
+            file_system,
             path_components: Vec::new(),
             states: Vec::new(),
             search_started: false,

@@ -107,9 +107,9 @@ impl<'a> LzfseBitstream<'a> {
     pub fn new(data: &'a [u8], data_offset: usize) -> Self {
         let data_size: usize = data.len();
         Self {
-            data: data,
-            data_offset: data_offset,
-            data_size: data_size,
+            data,
+            data_offset,
+            data_size,
             bits: 0,
             number_of_bits: 0,
         }
@@ -714,7 +714,7 @@ impl LzfseContext {
 
                     if self.mediator.debug_output {
                         self.mediator
-                            .debug_print(format!("    uncompressed block data:\n"));
+                            .debug_print(String::from("    uncompressed block data:\n"));
                         self.mediator.debug_print_data(
                             &compressed_data[compressed_data_offset..compressed_data_end_offset],
                             true,
@@ -919,8 +919,8 @@ impl LzfseContext {
             self.mediator
                 .debug_print_data(&compressed_data[data_offset..data_end_offset], true);
             self.mediator
-                .debug_print(format!("LzfseFrequencyTable {{\n"));
-            self.mediator.debug_print(format!("    values: [\n"));
+                .debug_print(String::from("LzfseFrequencyTable {\n"));
+            self.mediator.debug_print(String::from("    values: [\n"));
         }
         let mut data_offset: usize = 42;
         for frequency_table_index in 0..360 {
@@ -941,8 +941,8 @@ impl LzfseContext {
             frequency_table[frequency_table_index] = frequency_value;
         }
         if self.mediator.debug_output {
-            self.mediator.debug_print(format!("    ],\n"));
-            self.mediator.debug_print(format!("}}\n"));
+            self.mediator.debug_print(String::from("    ],\n"));
+            self.mediator.debug_print(String::from("}\n"));
         }
         *compressed_data_offset = data_offset;
 
@@ -1000,8 +1000,8 @@ impl LzfseContext {
                 self.mediator
                     .debug_print_data(&compressed_data[data_offset..data_end_offset], true);
                 self.mediator
-                    .debug_print(format!("LzfseFrequencyTable {{\n"));
-                self.mediator.debug_print(format!("    values: [\n"));
+                    .debug_print(String::from("LzfseFrequencyTable {\n"));
+                self.mediator.debug_print(String::from("    values: [\n"));
             }
             // TODO: use bitstream to read compressed data
             let mut number_of_bits: usize = 0;
@@ -1038,8 +1038,8 @@ impl LzfseContext {
                 number_of_bits -= frequency_value_size as usize;
             }
             if self.mediator.debug_output {
-                self.mediator.debug_print(format!("\n    ],\n"));
-                self.mediator.debug_print(format!("}}\n"));
+                self.mediator.debug_print(String::from("\n    ],\n"));
+                self.mediator.debug_print(String::from("}\n"));
             }
         }
         *compressed_data_offset = data_offset;
@@ -1114,7 +1114,7 @@ impl LzfseContext {
             }
         }
         if self.mediator.debug_output {
-            self.mediator.debug_print(format!("\n"));
+            self.mediator.debug_print(String::from("\n"));
         }
         Ok(())
     }
@@ -1281,7 +1281,7 @@ impl LzfseContext {
             remaining_data_size -= m_value as usize;
         }
         if self.mediator.debug_output {
-            self.mediator.debug_print(format!("\n"));
+            self.mediator.debug_print(String::from("\n"));
         }
         *uncompressed_data_offset = data_offset;
 

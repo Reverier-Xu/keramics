@@ -434,9 +434,7 @@ impl ImageTool {
             .translation_table
             .insert('|' as u32, String::from("\\|"));
 
-        Self {
-            display_path: display_path,
-        }
+        Self { display_path }
     }
 
     /// Output file entries in bodyfile format.
@@ -564,7 +562,7 @@ impl ImageTool {
         &self,
         file_entry: &mut VfsFileEntry,
         file_system_display_path: &String,
-        path_components: &Vec<VfsString>,
+        path_components: &[VfsString],
         calculate_md5: bool,
     ) -> Result<(), ErrorTrace> {
         let md5: String = if !calculate_md5 {
@@ -1165,22 +1163,19 @@ fn main() -> ExitCode {
                     return ExitCode::FAILURE;
                 }
             };
-            let result: Option<FormatIdentifier> = match image_tool
+            let format_identifier: FormatIdentifier = match image_tool
                 .scan_for_storage_image_formats(&data_stream)
             {
-                Ok(result) => result,
+                Ok(Some(format_identifier)) => format_identifier,
+                Ok(None) => {
+                    println!("No known storage media image format signatures found");
+                    return ExitCode::FAILURE;
+                }
                 Err(error) => {
                     println!(
                         "Unable to scan data stream for known storage media image format signatures with error:\n{}",
                         error
                     );
-                    return ExitCode::FAILURE;
-                }
-            };
-            let format_identifier: FormatIdentifier = match result {
-                Some(format_identifier) => format_identifier,
-                None => {
-                    println!("No known storage media image format signatures found");
                     return ExitCode::FAILURE;
                 }
             };
