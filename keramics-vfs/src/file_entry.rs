@@ -17,7 +17,7 @@ use keramics_core::{DataStreamReference, ErrorTrace};
 use keramics_datetime::DateTime;
 use keramics_formats::ext::ExtFileEntry;
 use keramics_formats::ext::constants::*;
-use keramics_formats::fat::FatFileEntry;
+use keramics_formats::fat::{FatFileEntry, FatString};
 use keramics_formats::ntfs::{NtfsDataFork, NtfsFileEntry};
 use keramics_formats::{Path, PathComponent};
 use keramics_types::Ucs2String;
@@ -28,13 +28,12 @@ use super::enums::VfsFileType;
 use super::ewf::EwfFileEntry;
 use super::extended_attribute::VfsExtendedAttribute;
 use super::fake::FakeFileEntry;
+use super::file_entries::VfsFileEntriesIterator;
 use super::gpt::GptFileEntry;
-use super::iterators::VfsFileEntriesIterator;
 use super::mbr::MbrFileEntry;
 use super::os::OsFileEntry;
 use super::qcow::QcowFileEntry;
 use super::sparseimage::SparseImageFileEntry;
-use super::string::VfsString;
 use super::udif::UdifFileEntry;
 use super::vhd::VhdFileEntry;
 use super::vhdx::VhdxFileEntry;
@@ -278,66 +277,41 @@ impl VfsFileEntry {
     }
 
     /// Retrieves the name.
-    pub fn get_name(&self) -> Option<VfsString> {
+    pub fn get_name(&self) -> Option<PathComponent> {
         match self {
-            VfsFileEntry::Apm(apm_file_entry) => match apm_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
-                None => None,
-            },
+            VfsFileEntry::Apm(apm_file_entry) => Some(apm_file_entry.get_name()),
             VfsFileEntry::Ext(ext_file_entry) => match ext_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
+                Some(name) => Some(PathComponent::from(name)),
                 None => None,
             },
-            VfsFileEntry::Ewf(ewf_file_entry) => match ewf_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
-                None => None,
-            },
-            VfsFileEntry::Fake(fake_file_entry) => match fake_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
-                None => None,
-            },
-            VfsFileEntry::Gpt(gpt_file_entry) => match gpt_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
-                None => None,
-            },
+            VfsFileEntry::Ewf(ewf_file_entry) => Some(ewf_file_entry.get_name()),
+            VfsFileEntry::Fake(fake_file_entry) => {
+                let path_component: &PathComponent = fake_file_entry.get_name();
+
+                Some(path_component.clone())
+            }
             VfsFileEntry::Fat(fat_file_entry) => match fat_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
+                Some(FatString::ByteString(byte_string)) => Some(PathComponent::from(byte_string)),
+                Some(FatString::Ucs2String(ucs2_string)) => Some(PathComponent::from(ucs2_string)),
                 None => None,
             },
-            VfsFileEntry::Mbr(mbr_file_entry) => match mbr_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
-                None => None,
-            },
+            VfsFileEntry::Gpt(gpt_file_entry) => Some(gpt_file_entry.get_name()),
+            VfsFileEntry::Mbr(mbr_file_entry) => Some(mbr_file_entry.get_name()),
             VfsFileEntry::Ntfs(ntfs_file_entry) => match ntfs_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
+                Some(name) => Some(PathComponent::from(name)),
                 None => None,
             },
             VfsFileEntry::Os(os_file_entry) => match os_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
+                Some(name) => Some(PathComponent::from(name)),
                 None => None,
             },
-            VfsFileEntry::Qcow(qcow_file_entry) => match qcow_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
-                None => None,
-            },
+            VfsFileEntry::Qcow(qcow_file_entry) => Some(qcow_file_entry.get_name()),
             VfsFileEntry::SparseImage(sparseimage_file_entry) => {
-                match sparseimage_file_entry.get_name() {
-                    Some(name) => Some(VfsString::from(name)),
-                    None => None,
-                }
+                Some(sparseimage_file_entry.get_name())
             }
-            VfsFileEntry::Udif(udif_file_entry) => match udif_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
-                None => None,
-            },
-            VfsFileEntry::Vhd(vhd_file_entry) => match vhd_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
-                None => None,
-            },
-            VfsFileEntry::Vhdx(vhdx_file_entry) => match vhdx_file_entry.get_name() {
-                Some(name) => Some(VfsString::from(name)),
-                None => None,
-            },
+            VfsFileEntry::Udif(udif_file_entry) => Some(udif_file_entry.get_name()),
+            VfsFileEntry::Vhd(vhd_file_entry) => Some(vhd_file_entry.get_name()),
+            VfsFileEntry::Vhdx(vhdx_file_entry) => Some(vhdx_file_entry.get_name()),
         }
     }
 
@@ -734,7 +708,7 @@ impl VfsFileEntry {
     /// Retrieves a data stream with the specified name.
     pub fn get_data_stream_by_name(
         &self,
-        name: Option<&VfsString>,
+        name: Option<&PathComponent>,
     ) -> Result<Option<DataStreamReference>, ErrorTrace> {
         let result: Option<DataStreamReference> = match self {
             VfsFileEntry::Apm(_)
@@ -763,11 +737,7 @@ impl VfsFileEntry {
                 },
             },
             VfsFileEntry::Ntfs(ntfs_file_entry) => {
-                let ntfs_name: Option<Ucs2String> = match name {
-                    Some(vfs_string) => Some(vfs_string.to_ucs2string()),
-                    None => None,
-                };
-                match ntfs_file_entry.get_data_stream_by_name(&ntfs_name) {
+                match ntfs_file_entry.get_data_stream_by_name(name) {
                     Ok(result) => result,
                     Err(mut error) => {
                         keramics_core::error_trace_add_frame!(
@@ -855,7 +825,45 @@ impl VfsFileEntry {
         }
     }
 
-    // TODO: add get extended_attribute_by_name
+    /// Retrieves a specific extended attribute.
+    pub fn get_extended_attribute_by_name(
+        &mut self,
+        extended_attribute_name: &PathComponent,
+    ) -> Result<Option<VfsExtendedAttribute>, ErrorTrace> {
+        match self {
+            VfsFileEntry::Apm(_)
+            | VfsFileEntry::Ewf(_)
+            | VfsFileEntry::Fake(_)
+            | VfsFileEntry::Fat(_)
+            | VfsFileEntry::Gpt(_)
+            | VfsFileEntry::Mbr(_)
+            | VfsFileEntry::Ntfs(_)
+            | VfsFileEntry::Os(_)
+            | VfsFileEntry::Qcow(_)
+            | VfsFileEntry::SparseImage(_)
+            | VfsFileEntry::Udif(_)
+            | VfsFileEntry::Vhd(_)
+            | VfsFileEntry::Vhdx(_) => Err(keramics_core::error_trace_new!(
+                "Missing extended attribute"
+            )),
+            VfsFileEntry::Ext(ext_file_entry) => {
+                match ext_file_entry.get_extended_attribute_by_name(extended_attribute_name) {
+                    Ok(Some(ext_extended_attribute)) => {
+                        Ok(Some(VfsExtendedAttribute::Ext(ext_extended_attribute)))
+                    }
+                    Ok(None) => Ok(None),
+                    Err(mut error) => {
+                        keramics_core::error_trace_add_frame!(
+                            error,
+                            "Unable to retrieve ext extended attribute"
+                        );
+                        Err(error)
+                    }
+                }
+            }
+        }
+    }
+
     // TODO: add get extended_attributes iterator
 
     /// Retrieves the number of sub file entries.
@@ -1146,22 +1154,11 @@ impl VfsFileEntry {
         Ok(sub_file_entry)
     }
 
+    // TODO: add get sub_file_entry_by_name
+
     /// Retrieves a sub file entries iterator.
-    pub fn sub_file_entries(&mut self) -> Result<VfsFileEntriesIterator<'_>, ErrorTrace> {
-        let number_of_sub_file_entries: usize = match self.get_number_of_sub_file_entries() {
-            Ok(number_of_sub_file_entries) => number_of_sub_file_entries,
-            Err(mut error) => {
-                keramics_core::error_trace_add_frame!(
-                    error,
-                    "Unable to determine number of sub file entries"
-                );
-                return Err(error);
-            }
-        };
-        Ok(VfsFileEntriesIterator::new(
-            self,
-            number_of_sub_file_entries,
-        ))
+    pub fn sub_file_entries(&mut self) -> VfsFileEntriesIterator<'_> {
+        VfsFileEntriesIterator::new(self)
     }
 
     /// Determines if the file entry is the root directory.
@@ -1292,11 +1289,13 @@ mod tests {
     fn test_get_file_type_with_apm() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_apm_file_entry("/")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_apm_file_entry("/apm2")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -1335,8 +1334,8 @@ mod tests {
     fn test_get_name_with_apm() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_apm_file_entry("/apm2")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from("apm2")));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("apm2")));
 
         Ok(())
     }
@@ -1397,6 +1396,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_apm() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_apm_file_entry("/apm2")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_apm() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_apm_file_entry("/apm2")?;
 
@@ -1413,6 +1429,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_apm() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_apm_file_entry("/apm2")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -1438,7 +1466,9 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_apm_file_entry("/")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
-        assert_eq!(sub_file_entry.get_name(), Some(VfsString::from("apm1")));
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("apm1")));
 
         let result: Result<VfsFileEntry, ErrorTrace> =
             vfs_file_entry.get_sub_file_entry_by_index(99);
@@ -1534,11 +1564,13 @@ mod tests {
     fn test_get_file_type_with_ext() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1/testfile1")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -1581,8 +1613,12 @@ mod tests {
     fn test_get_name_with_ext() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1/testfile1")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from(ByteString::from("testfile1"))));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(
+            name,
+            Some(PathComponent::from(ByteString::from("testfile1")))
+        );
+
         Ok(())
     }
 
@@ -1658,6 +1694,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_ext() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1/testfile1")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_ext() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1/testfile1")?;
 
@@ -1676,12 +1729,33 @@ mod tests {
             vfs_file_entry.get_extended_attribute_by_index(0)?;
         assert_eq!(
             extended_attribute.get_name(),
-            VfsString::ByteString(ByteString::from("security.selinux"))
+            PathComponent::ByteString(ByteString::from("security.selinux"))
         );
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(99);
         assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_ext() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1/testfile1")?;
+
+        let name: PathComponent = PathComponent::from("security.selinux");
+        let extended_attribute: VfsExtendedAttribute = vfs_file_entry
+            .get_extended_attribute_by_name(&name)?
+            .unwrap();
+        assert_eq!(
+            extended_attribute.get_name(),
+            PathComponent::ByteString(ByteString::from("security.selinux"))
+        );
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Option<VfsExtendedAttribute> =
+            vfs_file_entry.get_extended_attribute_by_name(&name)?;
+        assert!(result.is_none());
 
         Ok(())
     }
@@ -1706,9 +1780,11 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
         assert_eq!(
-            sub_file_entry.get_name(),
-            Some(VfsString::from(ByteString::from("TestFile2")))
+            name,
+            Some(PathComponent::from(ByteString::from("TestFile2")))
         );
 
         let result: Result<VfsFileEntry, ErrorTrace> =
@@ -1798,11 +1874,13 @@ mod tests {
     fn test_get_file_type_with_ewf() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/ewf1")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -1841,8 +1919,8 @@ mod tests {
     fn test_get_name_with_ewf() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/ewf1")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from("ewf1")));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("ewf1")));
 
         Ok(())
     }
@@ -1903,6 +1981,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_ewf() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/ewf1")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_ewf() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/ewf1")?;
 
@@ -1919,6 +2014,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_ewf() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/ewf1")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -1944,7 +2051,9 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
-        assert_eq!(sub_file_entry.get_name(), Some(VfsString::from("ewf1")));
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("ewf1")));
 
         let result: Result<VfsFileEntry, ErrorTrace> =
             vfs_file_entry.get_sub_file_entry_by_index(99);
@@ -2018,7 +2127,8 @@ mod tests {
     fn test_get_file_type_with_fake() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_fake_file_entry();
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -2058,8 +2168,8 @@ mod tests {
     fn test_get_name_with_fake() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_fake_file_entry();
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from("file.txt")));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("file.txt")));
 
         Ok(())
     }
@@ -2105,9 +2215,11 @@ mod tests {
     }
 
     // TODO: add test_get_data_stream_with_fake
+    // TODO: add test_get_data_stream_by_name_with_fake
 
     // TODO: add tests for test_get_number_of_extended_attributes_with_fake
     // TODO: add tests for test_get_extended_attribute_by_index_with_fake
+    // TODO: add tests for test_get_extended_attribute_by_name_with_fake
     // TODO: add tests for test_get_number_of_sub_file_entries_with_fake
     // TODO: add tests for test_get_sub_file_entry_by_index_with_fake
 
@@ -2195,11 +2307,13 @@ mod tests {
     fn test_get_file_type_with_fat() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1/testfile1")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -2243,8 +2357,12 @@ mod tests {
     fn test_get_name_with_fat() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1/testfile1")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from(Ucs2String::from("testfile1"))));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(
+            name,
+            Some(PathComponent::from(Ucs2String::from("testfile1")))
+        );
+
         Ok(())
     }
 
@@ -2304,6 +2422,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_fat() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1/testfile1")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_fat() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1/testfile1")?;
 
@@ -2320,6 +2455,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_fat() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1/testfile1")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -2345,9 +2492,11 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
         assert_eq!(
-            sub_file_entry.get_name(),
-            Some(VfsString::from(Ucs2String::from(
+            name,
+            Some(PathComponent::from(Ucs2String::from(
                 "My long, very long file name, so very long"
             )))
         );
@@ -2439,11 +2588,13 @@ mod tests {
     fn test_get_file_type_with_gpt() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/gpt2")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -2482,8 +2633,8 @@ mod tests {
     fn test_get_name_with_gpt() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/gpt2")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from("gpt2")));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("gpt2")));
 
         Ok(())
     }
@@ -2544,6 +2695,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_gpt() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/gpt2")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_gpt() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/gpt2")?;
 
@@ -2560,6 +2728,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_gpt() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/gpt2")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -2585,7 +2765,9 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
-        assert_eq!(sub_file_entry.get_name(), Some(VfsString::from("gpt1")));
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("gpt1")));
 
         let result: Result<VfsFileEntry, ErrorTrace> =
             vfs_file_entry.get_sub_file_entry_by_index(99);
@@ -2674,11 +2856,13 @@ mod tests {
     fn test_get_file_type_with_mbr() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/mbr2")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -2717,8 +2901,8 @@ mod tests {
     fn test_get_name_with_mbr() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/mbr2")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from("mbr2")));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("mbr2")));
 
         Ok(())
     }
@@ -2779,6 +2963,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_mbr() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/mbr2")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_mbr() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/mbr2")?;
 
@@ -2795,6 +2996,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_mbr() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/mbr2")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -2820,7 +3033,9 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
-        assert_eq!(sub_file_entry.get_name(), Some(VfsString::from("mbr1")));
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("mbr1")));
 
         let result: Result<VfsFileEntry, ErrorTrace> =
             vfs_file_entry.get_sub_file_entry_by_index(99);
@@ -2920,11 +3135,13 @@ mod tests {
     fn test_get_file_type_with_ntfs() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/testdir1")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/testdir1/testfile1")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -2967,8 +3184,12 @@ mod tests {
     fn test_get_name_with_ntfs() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/testdir1/testfile1")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from(Ucs2String::from("testfile1"))));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(
+            name,
+            Some(PathComponent::from(Ucs2String::from("testfile1")))
+        );
+
         Ok(())
     }
 
@@ -3030,6 +3251,28 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_ntfs() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/$UpCase")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("$Info"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_ntfs() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/testdir1/testfile1")?;
 
@@ -3046,6 +3289,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_ntfs() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/testdir1/testfile1")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -3071,9 +3326,11 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/testdir1")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
         assert_eq!(
-            sub_file_entry.get_name(),
-            Some(VfsString::from(Ucs2String::from(
+            name,
+            Some(PathComponent::from(Ucs2String::from(
                 "My long, very long file name, so very long"
             )))
         );
@@ -3165,11 +3422,13 @@ mod tests {
     fn test_get_file_type_with_os() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_os_file_entry("directory")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_os_file_entry("directory/file.txt")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -3217,8 +3476,8 @@ mod tests {
     fn test_get_name_with_os() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_os_file_entry("directory/file.txt")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from(OsString::from("file.txt"))));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from(OsString::from("file.txt"))));
 
         Ok(())
     }
@@ -3295,6 +3554,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_os() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_os_file_entry("directory/file.txt")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_os() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_os_file_entry("directory/file.txt")?;
 
@@ -3311,6 +3587,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_os() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_os_file_entry("directory/file.txt")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -3336,8 +3624,10 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_os_file_entry("directory")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
         // Note that the value can vary.
-        assert!(sub_file_entry.get_name().is_some());
+        assert!(name.is_some());
 
         let result: Result<VfsFileEntry, ErrorTrace> =
             vfs_file_entry.get_sub_file_entry_by_index(99);
@@ -3426,11 +3716,13 @@ mod tests {
     fn test_get_file_type_with_qcow() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/qcow1")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -3469,8 +3761,8 @@ mod tests {
     fn test_get_name_with_qcow() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/qcow1")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from("qcow1")));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("qcow1")));
 
         Ok(())
     }
@@ -3531,6 +3823,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_qcow() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/qcow1")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_qcow() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/qcow1")?;
 
@@ -3547,6 +3856,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_qcow() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/qcow1")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -3572,7 +3893,9 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
-        assert_eq!(sub_file_entry.get_name(), Some(VfsString::from("qcow1")));
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("qcow1")));
 
         let result: Result<VfsFileEntry, ErrorTrace> =
             vfs_file_entry.get_sub_file_entry_by_index(99);
@@ -3664,12 +3987,14 @@ mod tests {
         let path: Path = Path::from("/");
         let vfs_file_entry: VfsFileEntry = vfs_file_system.get_file_entry_by_path(&path)?.unwrap();
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let path: Path = Path::from("/sparseimage1");
         let vfs_file_entry: VfsFileEntry = vfs_file_system.get_file_entry_by_path(&path)?.unwrap();
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -3708,8 +4033,9 @@ mod tests {
     fn test_get_name_with_sparseimage() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/sparseimage1")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from("sparseimage1")));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("sparseimage1")));
+
         Ok(())
     }
 
@@ -3769,6 +4095,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_sparseimage() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/sparseimage1")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_sparseimage() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/sparseimage1")?;
 
@@ -3785,6 +4128,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_sparseimage() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/sparseimage1")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -3810,10 +4165,9 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
-        assert_eq!(
-            sub_file_entry.get_name(),
-            Some(VfsString::from("sparseimage1"))
-        );
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("sparseimage1")));
 
         let result: Result<VfsFileEntry, ErrorTrace> =
             vfs_file_entry.get_sub_file_entry_by_index(99);
@@ -3902,11 +4256,13 @@ mod tests {
     fn test_get_file_type_with_udif() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_udif_file_entry("/")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_udif_file_entry("/udif1")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -3945,8 +4301,8 @@ mod tests {
     fn test_get_name_with_udif() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_udif_file_entry("/udif1")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from("udif1")));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("udif1")));
 
         Ok(())
     }
@@ -4007,6 +4363,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_udif() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_udif_file_entry("/udif1")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_udif() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_udif_file_entry("/udif1")?;
 
@@ -4023,6 +4396,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_udif() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_udif_file_entry("/udif1")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -4048,7 +4433,9 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_udif_file_entry("/")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
-        assert_eq!(sub_file_entry.get_name(), Some(VfsString::from("udif1")));
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("udif1")));
 
         let result: Result<VfsFileEntry, ErrorTrace> =
             vfs_file_entry.get_sub_file_entry_by_index(99);
@@ -4137,11 +4524,13 @@ mod tests {
     fn test_get_file_type_with_vhd() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/vhd2")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -4180,8 +4569,8 @@ mod tests {
     fn test_get_name_with_vhd() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/vhd2")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from("vhd2")));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("vhd2")));
 
         Ok(())
     }
@@ -4242,6 +4631,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_vhd() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/vhd2")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_vhd() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/vhd2")?;
 
@@ -4258,6 +4664,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_vhd() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/vhd2")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -4283,7 +4701,9 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
-        assert_eq!(sub_file_entry.get_name(), Some(VfsString::from("vhd1")));
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("vhd1")));
 
         let result: Result<VfsFileEntry, ErrorTrace> =
             vfs_file_entry.get_sub_file_entry_by_index(99);
@@ -4372,11 +4792,13 @@ mod tests {
     fn test_get_file_type_with_vhdx() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::Directory);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::Directory);
 
         let vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/vhdx2")?;
 
-        assert!(vfs_file_entry.get_file_type() == VfsFileType::File);
+        let vfs_file_type: VfsFileType = vfs_file_entry.get_file_type();
+        assert_eq!(vfs_file_type, VfsFileType::File);
 
         Ok(())
     }
@@ -4415,8 +4837,8 @@ mod tests {
     fn test_get_name_with_vhdx() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/vhdx2")?;
 
-        let name: Option<VfsString> = vfs_file_entry.get_name();
-        assert_eq!(name, Some(VfsString::from("vhdx2")));
+        let name: Option<PathComponent> = vfs_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("vhdx2")));
 
         Ok(())
     }
@@ -4477,6 +4899,23 @@ mod tests {
     }
 
     #[test]
+    fn test_get_data_stream_by_name_with_vhdx() -> Result<(), ErrorTrace> {
+        let vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/vhdx2")?;
+
+        let name: Option<PathComponent> = None;
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_some());
+
+        let name: Option<PathComponent> = Some(PathComponent::from("bogus"));
+        let result: Option<DataStreamReference> =
+            vfs_file_entry.get_data_stream_by_name(name.as_ref())?;
+        assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
     fn test_get_number_of_extended_attributes_with_vhdx() -> Result<(), ErrorTrace> {
         let mut vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/vhdx2")?;
 
@@ -4493,6 +4932,18 @@ mod tests {
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(0);
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_extended_attribute_by_name_with_vhdx() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/vhdx2")?;
+
+        let name: PathComponent = PathComponent::from("bogus");
+        let result: Result<Option<VfsExtendedAttribute>, ErrorTrace> =
+            vfs_file_entry.get_extended_attribute_by_name(&name);
         assert!(result.is_err());
 
         Ok(())
@@ -4518,7 +4969,9 @@ mod tests {
         let mut vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/")?;
 
         let sub_file_entry: VfsFileEntry = vfs_file_entry.get_sub_file_entry_by_index(0)?;
-        assert_eq!(sub_file_entry.get_name(), Some(VfsString::from("vhdx1")));
+
+        let name: Option<PathComponent> = sub_file_entry.get_name();
+        assert_eq!(name, Some(PathComponent::from("vhdx1")));
 
         let result: Result<VfsFileEntry, ErrorTrace> =
             vfs_file_entry.get_sub_file_entry_by_index(99);

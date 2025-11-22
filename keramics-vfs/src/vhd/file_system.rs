@@ -214,6 +214,8 @@ impl VhdFileSystem {
 mod tests {
     use super::*;
 
+    use keramics_formats::PathComponent;
+
     use crate::enums::{VfsFileType, VfsType};
     use crate::file_system::VfsFileSystem;
     use crate::location::new_os_vfs_location;
@@ -273,11 +275,11 @@ mod tests {
 
         let vhd_file_entry: VhdFileEntry = result.unwrap();
 
-        let name: Option<String> = vhd_file_entry.get_name();
-        assert!(name.is_none());
+        let name: PathComponent = vhd_file_entry.get_name();
+        assert_eq!(name, PathComponent::Root);
 
         let file_type: VfsFileType = vhd_file_entry.get_file_type();
-        assert!(file_type == VfsFileType::Directory);
+        assert_eq!(file_type, VfsFileType::Directory);
 
         let path: Path = Path::from("/vhd1");
         let result: Option<VhdFileEntry> = vhd_file_system.get_file_entry_by_path(&path)?;
@@ -285,11 +287,11 @@ mod tests {
 
         let vhd_file_entry: VhdFileEntry = result.unwrap();
 
-        let name: Option<String> = vhd_file_entry.get_name();
-        assert_eq!(name, Some(String::from("vhd1")));
+        let name: PathComponent = vhd_file_entry.get_name();
+        assert_eq!(name, PathComponent::from("vhd1"));
 
         let file_type: VfsFileType = vhd_file_entry.get_file_type();
-        assert!(file_type == VfsFileType::File);
+        assert_eq!(file_type, VfsFileType::File);
 
         let path: Path = Path::from("/bogus1");
         let result: Option<VhdFileEntry> = vhd_file_system.get_file_entry_by_path(&path)?;

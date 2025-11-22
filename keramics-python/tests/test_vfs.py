@@ -89,6 +89,30 @@ class TestDataStream(TestClass):
             _ = data_stream.seek(0, whence=99)
 
 
+class TestDataStream(TestClass):
+    def get_extended_attribute(self, path):
+        resolver = vfs.VfsResolver()
+
+        os_path_string = self.get_test_data_path("qcow/ext2.qcow2")
+        os_location = vfs.VfsLocation.new_base_from_string(
+            vfs.VfsType.OS, os_path_string
+        )
+        qcow_location = os_location.new_with_layer_from_string(
+            vfs.VfsType.QCOW, "/qcow1"
+        )
+        ext_location = qcow_location.new_with_layer_from_string(vfs.VfsType.EXT, path)
+
+        file_entry = resolver.get_file_entry_by_location(ext_location)
+        name = vfs.VfsPathComponent.from_string("security.selinux")
+        return file_entry.get_extended_attribute_by_name(name)
+
+    def test_getters(self):
+        extended_attribute = self.get_extended_attribute("/testdir1/testfile1")
+
+        assert extended_attribute is not None
+        assert extended_attribute.name.to_string() == "security.selinux"
+
+
 class TestFileEntry(TestClass):
     def get_file_entry(self, path):
         resolver = vfs.VfsResolver()
@@ -132,6 +156,40 @@ class TestFileEntry(TestClass):
 
         assert data_stream is not None
 
+    def test_get_number_of_extended_attributes(self):
+        file_entry = self.get_file_entry("/testdir1")
+
+        file_entry = self.get_file_entry("/testdir1/testfile1")
+
+        number_of_extended_attributes = file_entry.get_number_of_extended_attributes()
+        assert number_of_extended_attributes == 1
+
+    def test_get_extended_attribute_by_index(self):
+        file_entry = self.get_file_entry("/testdir1/testfile1")
+
+        assert file_entry is not None
+
+        extended_attribute = file_entry.get_extended_attribute_by_index(0)
+        assert extended_attribute is not None
+        assert extended_attribute.name.to_string() == "security.selinux"
+
+        with pytest.raises(RuntimeError):
+            _ = file_entry.get_extended_attribute_by_index(99)
+
+    def test_get_extended_attribute_by_name(self):
+        file_entry = self.get_file_entry("/testdir1/testfile1")
+
+        assert file_entry is not None
+
+        name = vfs.VfsPathComponent.from_string("security.selinux")
+        extended_attribute = file_entry.get_extended_attribute_by_name(name)
+        assert extended_attribute is not None
+        assert extended_attribute.name.to_string() == "security.selinux"
+
+        name = vfs.VfsPathComponent.from_string("bogus")
+        extended_attribute = file_entry.get_extended_attribute_by_name(name)
+        assert extended_attribute is None
+
     def test_get_number_of_sub_file_entries(self):
         file_entry = self.get_file_entry("/testdir1")
 
@@ -154,10 +212,55 @@ class TestFileEntry(TestClass):
         assert sub_file_entry is not None
         assert sub_file_entry.name.to_string() == "TestFile2"
 
-        file_entry = self.get_file_entry("/testdir1/testfile1")
-
         with pytest.raises(RuntimeError):
-            _ = file_entry.get_sub_file_entry_by_index(0)
+            _ = file_entry.get_sub_file_entry_by_index(99)
+
+    def test_sub_file_entries(self):
+        class VfsFileEntriesIterator:
+            def __init__(self, file_entry):
+                self._file_entry = file_entry
+                self._sub_file_entry_index = 0
+                self._number_of_sub_file_entries = (
+                    file_entry.get_number_of_sub_file_entries()
+                )
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                if self._sub_file_entry_index >= self._number_of_sub_file_entries:
+                    raise StopIteration
+
+                sub_file_entry = self._file_entry.get_sub_file_entry_by_index(
+                    self._sub_file_entry_index
+                )
+                self._sub_file_entry_index += 1
+                return sub_file_entry
+
+        file_entry = self.get_file_entry("/testdir1")
+
+        assert file_entry is not None
+
+        file_names = sorted(
+            [
+                sub_file_entry.name.to_string()
+                for sub_file_entry in VfsFileEntriesIterator(file_entry)
+            ]
+        )
+        assert file_names == sorted(
+            [
+                "blockdev1",
+                "chardev1",
+                "initial_sparse1",
+                "pipe1",
+                "testfile1",
+                "TestFile2",
+                "trailing_sparse1",
+                "uninitialized1",
+                "xattr1",
+                "xattr2",
+            ]
+        )
 
 
 class TestFileSystem(TestClass):
@@ -337,16 +440,16 @@ class TestPath(TestClass):
 
 
 class TestPathComponent(TestClass):
-    def test_new(self):
-        string = vfs.VfsString.from_string("ext2.qcow2")
-        path_component = vfs.VfsPathComponent.new(string)
-
-        assert path_component is not None
-
     def test_from_string(self):
         path_component = vfs.VfsPathComponent.from_string("ext2.qcow2")
 
         assert path_component is not None
+
+    def test_to_string(self):
+        path_component = vfs.VfsPathComponent.from_string("ext2.qcow2")
+
+        assert path_component is not None
+        assert path_component.to_string() == "ext2.qcow2"
 
 
 class TestResolver(TestClass):
@@ -414,13 +517,6 @@ class TestResolver(TestClass):
         file_system = resolver.open_file_system(ext_location)
 
         assert file_system is not None
-
-
-class TestPathComponent(TestClass):
-    def test_from_string(self):
-        string = vfs.VfsString.from_string("ext2.qcow2")
-
-        assert string is not None
 
 
 class TestType(TestClass):
