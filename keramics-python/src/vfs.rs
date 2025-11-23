@@ -323,6 +323,10 @@ impl PyVfsFileEntry {
         }
     }
 
+    // TODO: add get_number_of_data_forks
+    // TODO: add get_data_fork_by_index
+    // TODO: add get_data_fork_by_name
+
     pub fn get_data_stream(self_ref: PyRef<'_, Self>) -> PyResult<Option<PyVfsDataStream>> {
         match self_ref.file_entry.get_data_stream() {
             Ok(Some(data_stream)) => Ok(Some(PyVfsDataStream { data_stream })),
@@ -333,6 +337,8 @@ impl PyVfsFileEntry {
             ))),
         }
     }
+
+    // TODO: add get_data_stream_by_name
 
     pub fn get_number_of_extended_attributes(mut self_ref: PyRefMut<'_, Self>) -> PyResult<usize> {
         let vfs_file_entry: &mut VfsFileEntry = match Arc::get_mut(&mut self_ref.file_entry) {
@@ -439,6 +445,8 @@ impl PyVfsFileEntry {
             ))),
         }
     }
+
+    // TODO: add get sub_file_entry_by_name
 }
 
 #[pyclass]
@@ -771,6 +779,8 @@ pub enum PyVfsType {
     Ewf,
     #[pyo3(name = "FAKE")]
     Fake,
+    #[pyo3(name = "FAT")]
+    Fat,
     #[pyo3(name = "GPT")]
     Gpt,
     #[pyo3(name = "MBR")]
@@ -779,6 +789,10 @@ pub enum PyVfsType {
     Os,
     #[pyo3(name = "QCOW")]
     Qcow,
+    #[pyo3(name = "SPARSE_IMAGE")]
+    SparseImage,
+    #[pyo3(name = "UDIF")]
+    Udif,
     #[pyo3(name = "VHD")]
     Vhd,
     #[pyo3(name = "VHDX")]
@@ -794,10 +808,13 @@ impl From<&PyVfsType> for VfsType {
             PyVfsType::Ext => VfsType::Ext,
             PyVfsType::Ewf => VfsType::Ewf,
             PyVfsType::Fake => VfsType::Fake,
+            PyVfsType::Fat => VfsType::Fat,
             PyVfsType::Gpt => VfsType::Gpt,
             PyVfsType::Mbr => VfsType::Mbr,
             PyVfsType::Os => VfsType::Os,
             PyVfsType::Qcow => VfsType::Qcow,
+            PyVfsType::SparseImage => VfsType::SparseImage,
+            PyVfsType::Udif => VfsType::Udif,
             PyVfsType::Vhd => VfsType::Vhd,
             PyVfsType::Vhdx => VfsType::Vhdx,
         }
