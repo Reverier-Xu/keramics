@@ -9,13 +9,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - name: Install Python dependencies
+      run: |
+        sudo add-apt-repository universe
+        sudo apt-get update
+        sudo apt-get install -y python3 python3-dev python3-venv python3-maturin python3-pip tox
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
+    - name: Install pytest and pytest-cov
+      run: |
+        python3 -m pip install pytest pytest-cov
     - name: Generate code coverage report
-      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+      run: |
+        source <(cargo llvm-cov show-env --export-prefix)
+        export CARGO_TARGET_DIR=$CARGO_LLVM_COV_TARGET_DIR
+        export CARGO_INCREMENTAL=1
+        cargo llvm-cov clean --workspace
+        cargo build --verbose --all-features
+        cargo test --verbose
+        (cd keramics-python && maturin build --out . && pip install pykeramics*.whl)
+        pytest --cov=pykeramics --cov-report=xml
+        cargo llvm-cov report --lcov --output-path coverage.lcov
     - name: Upload code coverage report to Codecov
       uses: codecov/codecov-action@v5
       with:
-        files: lcov.info
+        files: coverage.lcov,coverage.xml
         token: ${{ secrets.CODECOV_TOKEN }}
         verbose: true
