@@ -24,6 +24,7 @@ use keramics_types::Ucs2String;
 
 use super::apm::ApmFileEntry;
 use super::data_fork::VfsDataFork;
+use super::data_forks::VfsDataForksIterator;
 use super::enums::VfsFileType;
 use super::ewf::EwfFileEntry;
 use super::extended_attribute::VfsExtendedAttribute;
@@ -534,7 +535,7 @@ impl VfsFileEntry {
 
     /// Retrieves a specific data fork.
     pub fn get_data_fork_by_index(
-        &self,
+        &mut self,
         data_fork_index: usize,
     ) -> Result<VfsDataFork, ErrorTrace> {
         let result: Result<Option<VfsDataFork>, ErrorTrace> = match self {
@@ -579,8 +580,13 @@ impl VfsFileEntry {
 
     // TODO: add get_data_fork_by_name
 
+    /// Retrieves a data fork iterator.
+    pub fn data_forks(&mut self) -> VfsDataForksIterator<'_> {
+        VfsDataForksIterator::new(self)
+    }
+
     /// Retrieves the default data stream.
-    pub fn get_data_stream(&self) -> Result<Option<DataStreamReference>, ErrorTrace> {
+    pub fn get_data_stream(&mut self) -> Result<Option<DataStreamReference>, ErrorTrace> {
         let result: Result<Option<DataStreamReference>, ErrorTrace> = match self {
             VfsFileEntry::Apm(apm_file_entry) => apm_file_entry.get_data_stream(),
             VfsFileEntry::Ext(ext_file_entry) => ext_file_entry.get_data_stream(),
@@ -611,7 +617,7 @@ impl VfsFileEntry {
 
     /// Retrieves a data stream with the specified name.
     pub fn get_data_stream_by_name(
-        &self,
+        &mut self,
         name: Option<&PathComponent>,
     ) -> Result<Option<DataStreamReference>, ErrorTrace> {
         let result: Result<Option<DataStreamReference>, ErrorTrace> = match self {
@@ -923,6 +929,7 @@ mod tests {
 
     use keramics_core::open_os_data_stream;
     use keramics_datetime::{FatDate, FatTimeDate, FatTimeDate10Ms, Filetime, PosixTime32};
+    use keramics_encodings::CharacterEncoding;
     use keramics_formats::ext::ExtFileSystem;
     use keramics_formats::fat::FatFileSystem;
     use keramics_formats::ntfs::NtfsFileSystem;
@@ -1111,13 +1118,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_apm() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_apm() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_apm_file_entry("/")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_apm_file_entry("/apm2")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_apm() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_apm_file_entry("/")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_apm_file_entry("/apm2")?;
+        let mut vfs_file_entry: VfsFileEntry = get_apm_file_entry("/apm2")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -1127,7 +1151,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_apm() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_apm_file_entry("/apm2")?;
+        let mut vfs_file_entry: VfsFileEntry = get_apm_file_entry("/apm2")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -1410,13 +1434,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_ext() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_ext() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1/testfile1")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_ext() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1/testfile1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1/testfile1")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -1426,7 +1467,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_ext() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1/testfile1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_ext_file_entry("/testdir1/testfile1")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -1458,10 +1499,13 @@ mod tests {
 
         let extended_attribute: VfsExtendedAttribute =
             vfs_file_entry.get_extended_attribute_by_index(0)?;
-        assert_eq!(
-            extended_attribute.get_name(),
-            PathComponent::ByteString(ByteString::from("security.selinux"))
-        );
+        let expected_name: PathComponent = PathComponent::ByteString(ByteString {
+            encoding: CharacterEncoding::Ascii,
+            elements: vec![
+                115, 101, 99, 117, 114, 105, 116, 121, 46, 115, 101, 108, 105, 110, 117, 120,
+            ],
+        });
+        assert_eq!(extended_attribute.get_name(), expected_name,);
 
         let result: Result<VfsExtendedAttribute, ErrorTrace> =
             vfs_file_entry.get_extended_attribute_by_index(99);
@@ -1478,10 +1522,13 @@ mod tests {
         let extended_attribute: VfsExtendedAttribute = vfs_file_entry
             .get_extended_attribute_by_name(&name)?
             .unwrap();
-        assert_eq!(
-            extended_attribute.get_name(),
-            PathComponent::ByteString(ByteString::from("security.selinux"))
-        );
+        let expected_name: PathComponent = PathComponent::ByteString(ByteString {
+            encoding: CharacterEncoding::Ascii,
+            elements: vec![
+                115, 101, 99, 117, 114, 105, 116, 121, 46, 115, 101, 108, 105, 110, 117, 120,
+            ],
+        });
+        assert_eq!(extended_attribute.get_name(), expected_name);
 
         let name: PathComponent = PathComponent::from("bogus");
         let result: Option<VfsExtendedAttribute> =
@@ -1697,13 +1744,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_ewf() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_ewf() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/ewf1")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_ewf() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/ewf1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/ewf1")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -1713,7 +1777,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_ewf() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/ewf1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_ewf_file_entry("/ewf1")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -1945,6 +2009,8 @@ mod tests {
         Ok(())
     }
 
+    // TODO: add test_get_number_of_data_forks_with_fake
+    // TODO: add tests for test_data_forks
     // TODO: add test_get_data_stream_with_fake
     // TODO: add test_get_data_stream_by_name_with_fake
 
@@ -2139,13 +2205,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_fat() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_fat() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1/testfile1")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_fat() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1/testfile1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1/testfile1")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -2155,7 +2238,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_fat() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1/testfile1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_fat_file_entry("/testdir1/testfile1")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -2412,13 +2495,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_gpt() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_gpt() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/gpt2")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_gpt() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/gpt2")?;
+        let mut vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/gpt2")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -2428,7 +2528,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_gpt() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/gpt2")?;
+        let mut vfs_file_entry: VfsFileEntry = get_gpt_file_entry("/gpt2")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -2680,13 +2780,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_mbr() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_mbr() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/mbr2")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_mbr() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/mbr2")?;
+        let mut vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/mbr2")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -2696,7 +2813,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_mbr() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/mbr2")?;
+        let mut vfs_file_entry: VfsFileEntry = get_mbr_file_entry("/mbr2")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -2969,13 +3086,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_ntfs() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_ntfs() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/testdir1")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/testdir1/testfile1")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_ntfs() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/testdir1")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/testdir1/testfile1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/testdir1/testfile1")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -2985,7 +3119,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_ntfs() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/$UpCase")?;
+        let mut vfs_file_entry: VfsFileEntry = get_ntfs_file_entry("/$UpCase")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -3272,13 +3406,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_os() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_os() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_os_file_entry("directory")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_os_file_entry("directory/file.txt")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_os() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_os_file_entry("directory")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_os_file_entry("directory/file.txt")?;
+        let mut vfs_file_entry: VfsFileEntry = get_os_file_entry("directory/file.txt")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -3288,7 +3439,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_os() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_os_file_entry("directory/file.txt")?;
+        let mut vfs_file_entry: VfsFileEntry = get_os_file_entry("directory/file.txt")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -3541,13 +3692,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_qcow() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_qcow() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/qcow1")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_qcow() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/qcow1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/qcow1")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -3557,7 +3725,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_qcow() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/qcow1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_qcow_file_entry("/qcow1")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -3813,13 +3981,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_sparseimage() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_sparseimage() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/sparseimage1")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_sparseimage() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/sparseimage1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/sparseimage1")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -3829,7 +4014,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_sparseimage() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/sparseimage1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_sparseimage_file_entry("/sparseimage1")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -4081,13 +4266,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_splitraw() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_splitraw() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_splitraw_file_entry("/")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_splitraw_file_entry("/raw1")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_splitraw() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_splitraw_file_entry("/")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_splitraw_file_entry("/raw1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_splitraw_file_entry("/raw1")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -4097,7 +4299,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_splitraw() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_splitraw_file_entry("/raw1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_splitraw_file_entry("/raw1")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -4349,13 +4551,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_udif() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_udif() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_udif_file_entry("/")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_udif_file_entry("/udif1")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_udif() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_udif_file_entry("/")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_udif_file_entry("/udif1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_udif_file_entry("/udif1")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -4365,7 +4584,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_udif() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_udif_file_entry("/udif1")?;
+        let mut vfs_file_entry: VfsFileEntry = get_udif_file_entry("/udif1")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -4617,13 +4836,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_vhd() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_vhd() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/vhd2")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_vhd() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/vhd2")?;
+        let mut vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/vhd2")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -4633,7 +4869,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_vhd() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/vhd2")?;
+        let mut vfs_file_entry: VfsFileEntry = get_vhd_file_entry("/vhd2")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -4885,13 +5121,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_data_stream_with_vhdx() -> Result<(), ErrorTrace> {
+    fn test_get_number_of_data_forks_with_vhdx() -> Result<(), ErrorTrace> {
         let vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 0);
+
+        let vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/vhdx2")?;
+
+        let number_of_data_forks: usize = vfs_file_entry.get_number_of_data_forks()?;
+        assert_eq!(number_of_data_forks, 1);
+
+        Ok(())
+    }
+
+    // TODO: add tests for test_data_forks
+
+    #[test]
+    fn test_get_data_stream_with_vhdx() -> Result<(), ErrorTrace> {
+        let mut vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
-        let vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/vhdx2")?;
+        let mut vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/vhdx2")?;
 
         let result: Option<DataStreamReference> = vfs_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -4901,7 +5154,7 @@ mod tests {
 
     #[test]
     fn test_get_data_stream_by_name_with_vhdx() -> Result<(), ErrorTrace> {
-        let vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/vhdx2")?;
+        let mut vfs_file_entry: VfsFileEntry = get_vhdx_file_entry("/vhdx2")?;
 
         let name: Option<PathComponent> = None;
         let result: Option<DataStreamReference> =
@@ -4982,8 +5235,6 @@ mod tests {
     }
 
     // Other tests.
-
-    // TODO: add tests for get_number_of_data_forks
 
     // TODO: add tests for extended_attributes
     // TODO: add tests for sub_file_entries

@@ -16,7 +16,6 @@ use std::io::SeekFrom;
 use keramics_checksums::ReversedCrc32Context;
 use keramics_core::mediator::{Mediator, MediatorReference};
 use keramics_core::{DataStreamReference, ErrorTrace};
-use keramics_encodings::CharacterEncoding;
 
 use super::features::ExtFeatures;
 use super::group_descriptor::ExtGroupDescriptor;
@@ -28,7 +27,7 @@ pub struct ExtInodeTable {
     mediator: MediatorReference,
 
     /// Format version.
-    format_version: u8,
+    pub format_version: u8,
 
     /// Metadata checksum seed.
     metadata_checksum_seed: Option<u32>,
@@ -97,7 +96,6 @@ impl ExtInodeTable {
         &self,
         data_stream: &DataStreamReference,
         inode_number: u32,
-        encoding: &CharacterEncoding,
     ) -> Result<ExtInode, ErrorTrace> {
         if inode_number == 0 || inode_number > self.number_of_inodes {
             return Err(keramics_core::error_trace_new!(format!(
@@ -143,7 +141,7 @@ impl ExtInodeTable {
             self.mediator
                 .debug_print(inode.debug_read_data(self.format_version, &data));
         }
-        match inode.read_data(self.format_version, &data, encoding) {
+        match inode.read_data(self.format_version, &data) {
             Ok(_) => {}
             Err(mut error) => {
                 keramics_core::error_trace_add_frame!(error, "Unable to read inode");
@@ -181,13 +179,6 @@ impl ExtInodeTable {
                 }
             }
             None => {}
-        };
-        match inode.read_data_reference(self.format_version, data_stream, self.block_size) {
-            Ok(_) => {}
-            Err(mut error) => {
-                keramics_core::error_trace_add_frame!(error, "Unable to read inode data reference");
-                return Err(error);
-            }
         }
         Ok(inode)
     }

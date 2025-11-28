@@ -16,6 +16,7 @@ use std::sync::{Arc, RwLock};
 
 use keramics_core::{DataStream, DataStreamReference, ErrorTrace, FakeDataStream};
 use keramics_datetime::DateTime;
+use keramics_encodings::CharacterEncoding;
 use keramics_types::{ByteString, bytes_to_u16_le};
 
 use crate::path_component::PathComponent;
@@ -176,10 +177,11 @@ impl ExtFileEntry {
             let byte_string: ByteString = if self.inode.data_size < 60 {
                 ByteString::from(self.inode.data_reference.as_slice())
             } else {
-                let mut block_stream: ExtBlockStream = match self
-                    .inode
-                    .get_block_stream(&self.data_stream, self.inode_table.block_size)
-                {
+                let mut block_stream: ExtBlockStream = match self.inode.get_block_stream(
+                    self.inode_table.format_version,
+                    &self.data_stream,
+                    self.inode_table.block_size,
+                ) {
                     Ok(block_stream) => block_stream,
                     Err(mut error) => {
                         keramics_core::error_trace_add_frame!(
@@ -209,14 +211,15 @@ impl ExtFileEntry {
     }
 
     /// Retrieves the default data stream.
-    pub fn get_data_stream(&self) -> Result<Option<DataStreamReference>, ErrorTrace> {
+    pub fn get_data_stream(&mut self) -> Result<Option<DataStreamReference>, ErrorTrace> {
         if self.inode.file_mode & 0xf000 != EXT_FILE_MODE_TYPE_REGULAR_FILE {
             return Ok(None);
         }
-        match self
-            .inode
-            .get_data_stream(&self.data_stream, self.inode_table.block_size)
-        {
+        match self.inode.get_data_stream(
+            self.inode_table.format_version,
+            &self.data_stream,
+            self.inode_table.block_size,
+        ) {
             Ok(data_stream) => Ok(Some(data_stream)),
             Err(mut error) => {
                 keramics_core::error_trace_add_frame!(error, "Unable to retrieve data stream");
@@ -251,11 +254,10 @@ impl ExtFileEntry {
             );
             Ok(Arc::new(RwLock::new(data_stream)))
         } else {
-            let inode: ExtInode = match self.inode_table.get_inode(
-                &self.data_stream,
-                attributes_entry.value_data_inode_number,
-                &self.sub_directory_entries.encoding,
-            ) {
+            let mut inode: ExtInode = match self
+                .inode_table
+                .get_inode(&self.data_stream, attributes_entry.value_data_inode_number)
+            {
                 Ok(inode) => inode,
                 Err(mut error) => {
                     keramics_core::error_trace_add_frame!(
@@ -268,7 +270,11 @@ impl ExtFileEntry {
                     return Err(error);
                 }
             };
-            match inode.get_data_stream(&self.data_stream, self.inode_table.block_size) {
+            match inode.get_data_stream(
+                self.inode_table.format_version,
+                &self.data_stream,
+                self.inode_table.block_size,
+            ) {
                 Ok(data_stream) => Ok(data_stream),
                 Err(mut error) => {
                     keramics_core::error_trace_add_frame!(error, "Unable to retrieve data stream");
@@ -329,7 +335,7 @@ impl ExtFileEntry {
             }
         }
         let lookup_name: ByteString =
-            match extended_attribute_name.to_byte_string(&self.sub_directory_entries.encoding) {
+            match extended_attribute_name.to_byte_string(&CharacterEncoding::Ascii) {
                 Ok(byte_string) => byte_string,
                 Err(mut error) => {
                     keramics_core::error_trace_add_frame!(
@@ -402,11 +408,10 @@ impl ExtFileEntry {
             .get_entry_by_index(sub_file_entry_index)
         {
             Some((name, directory_entry)) => {
-                let inode: ExtInode = match self.inode_table.get_inode(
-                    &self.data_stream,
-                    directory_entry.inode_number,
-                    &self.sub_directory_entries.encoding,
-                ) {
+                let inode: ExtInode = match self
+                    .inode_table
+                    .get_inode(&self.data_stream, directory_entry.inode_number)
+                {
                     Ok(inode) => inode,
                     Err(mut error) => {
                         keramics_core::error_trace_add_frame!(
@@ -459,11 +464,10 @@ impl ExtFileEntry {
             .get_entry_by_name(sub_file_entry_name)
         {
             Ok(Some((name, directory_entry))) => {
-                let inode: ExtInode = match self.inode_table.get_inode(
-                    &self.data_stream,
-                    directory_entry.inode_number,
-                    &self.sub_directory_entries.encoding,
-                ) {
+                let inode: ExtInode = match self
+                    .inode_table
+                    .get_inode(&self.data_stream, directory_entry.inode_number)
+                {
                     Ok(inode) => inode,
                     Err(mut error) => {
                         keramics_core::error_trace_add_frame!(
@@ -503,8 +507,7 @@ impl ExtFileEntry {
     /// Reads the attributes block.
     fn read_attributes_block(&mut self) -> Result<(), ErrorTrace> {
         if self.inode.file_acl_block_number != 0 {
-            let mut attributes_block: ExtAttributesBlock =
-                ExtAttributesBlock::new(0, &self.sub_directory_entries.encoding);
+            let mut attributes_block: ExtAttributesBlock = ExtAttributesBlock::new(0);
 
             let attributes_block_offset =
                 self.inode.file_acl_block_number * (self.inode_table.block_size as u64);
@@ -544,6 +547,22 @@ impl ExtFileEntry {
                 }
             }
         } else {
+            if !self.inode.data_reference_is_read {
+                match self.inode.read_data_reference(
+                    self.inode_table.format_version,
+                    &self.data_stream,
+                    self.inode_table.block_size,
+                ) {
+                    Ok(_) => {}
+                    Err(mut error) => {
+                        keramics_core::error_trace_add_frame!(
+                            error,
+                            "Unable to read inode data reference"
+                        );
+                        return Err(error);
+                    }
+                }
+            }
             match self.sub_directory_entries.read_block_data(
                 &self.data_stream,
                 self.inode_table.block_size,
@@ -801,13 +820,15 @@ mod tests {
         let ext_file_system: ExtFileSystem = get_file_system("ext/ext2.raw")?;
 
         let path: Path = Path::from("/testdir1");
-        let ext_file_entry: ExtFileEntry = ext_file_system.get_file_entry_by_path(&path)?.unwrap();
+        let mut ext_file_entry: ExtFileEntry =
+            ext_file_system.get_file_entry_by_path(&path)?.unwrap();
 
         let result: Option<DataStreamReference> = ext_file_entry.get_data_stream()?;
         assert!(result.is_none());
 
         let path: Path = Path::from("/testdir1/testfile1");
-        let ext_file_entry: ExtFileEntry = ext_file_system.get_file_entry_by_path(&path)?.unwrap();
+        let mut ext_file_entry: ExtFileEntry =
+            ext_file_system.get_file_entry_by_path(&path)?.unwrap();
 
         let result: Option<DataStreamReference> = ext_file_entry.get_data_stream()?;
         assert!(result.is_some());
@@ -839,10 +860,13 @@ mod tests {
 
         let extended_attribute: ExtExtendedAttribute =
             ext_file_entry.get_extended_attribute_by_index(0)?;
-        assert_eq!(
-            extended_attribute.get_name(),
-            &ByteString::from("security.selinux")
-        );
+        let expected_name: ByteString = ByteString {
+            encoding: CharacterEncoding::Ascii,
+            elements: vec![
+                115, 101, 99, 117, 114, 105, 116, 121, 46, 115, 101, 108, 105, 110, 117, 120,
+            ],
+        };
+        assert_eq!(extended_attribute.get_name(), &expected_name);
 
         let result: Result<ExtExtendedAttribute, ErrorTrace> =
             ext_file_entry.get_extended_attribute_by_index(99);
@@ -863,10 +887,13 @@ mod tests {
         let extended_attribute: ExtExtendedAttribute = ext_file_entry
             .get_extended_attribute_by_name(&name)?
             .unwrap();
-        assert_eq!(
-            extended_attribute.get_name(),
-            &ByteString::from("security.selinux")
-        );
+        let expected_name: ByteString = ByteString {
+            encoding: CharacterEncoding::Ascii,
+            elements: vec![
+                115, 101, 99, 117, 114, 105, 116, 121, 46, 115, 101, 108, 105, 110, 117, 120,
+            ],
+        };
+        assert_eq!(extended_attribute.get_name(), &expected_name);
 
         let name: PathComponent = PathComponent::from("bogus");
         let result: Option<ExtExtendedAttribute> =

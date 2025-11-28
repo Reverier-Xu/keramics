@@ -17,7 +17,6 @@ use std::sync::{Arc, RwLock};
 
 use keramics_core::{DataStreamReference, ErrorTrace, FakeDataStream};
 use keramics_datetime::DateTime;
-use keramics_encodings::CharacterEncoding;
 use keramics_types::ByteString;
 
 use super::attributes_entry::ExtAttributesEntry;
@@ -92,6 +91,9 @@ pub struct ExtInode {
 
     /// Attributes.
     pub attributes: BTreeMap<ByteString, ExtAttributesEntry>,
+
+    /// Value to indicate the data reference was read.
+    pub data_reference_is_read: bool,
 }
 
 impl ExtInode {
@@ -118,6 +120,7 @@ impl ExtInode {
             creation_time: None,
             block_ranges: Vec::new(),
             attributes: BTreeMap::new(),
+            data_reference_is_read: false,
         }
     }
 
@@ -141,10 +144,20 @@ impl ExtInode {
 
     /// Retrieves the block stream.
     pub fn get_block_stream(
-        &self,
+        &mut self,
+        format_version: u8,
         data_stream: &DataStreamReference,
         block_size: u32,
     ) -> Result<ExtBlockStream, ErrorTrace> {
+        if !self.data_reference_is_read {
+            match self.read_data_reference(format_version, data_stream, block_size) {
+                Ok(_) => {}
+                Err(mut error) => {
+                    keramics_core::error_trace_add_frame!(error, "Unable to read data reference");
+                    return Err(error);
+                }
+            }
+        }
         let number_of_blocks: u64 = max(
             self.data_size.div_ceil(block_size as u64),
             self.number_of_blocks,
@@ -163,7 +176,8 @@ impl ExtInode {
 
     /// Retrieves the data stream.
     pub fn get_data_stream(
-        &self,
+        &mut self,
+        format_version: u8,
         data_stream: &DataStreamReference,
         block_size: u32,
     ) -> Result<DataStreamReference, ErrorTrace> {
@@ -173,7 +187,7 @@ impl ExtInode {
 
             Ok(Arc::new(RwLock::new(data_stream)))
         } else {
-            match self.get_block_stream(data_stream, block_size) {
+            match self.get_block_stream(format_version, data_stream, block_size) {
                 Ok(block_stream) => Ok(Arc::new(RwLock::new(block_stream))),
                 Err(mut error) => {
                     keramics_core::error_trace_add_frame!(error, "Unable to retrieve block stream");
@@ -184,12 +198,7 @@ impl ExtInode {
     }
 
     /// Reads the inode from a buffer.
-    pub fn read_data(
-        &mut self,
-        format_version: u8,
-        data: &[u8],
-        encoding: &CharacterEncoding,
-    ) -> Result<(), ErrorTrace> {
+    pub fn read_data(&mut self, format_version: u8, data: &[u8]) -> Result<(), ErrorTrace> {
         match format_version {
             4 => {
                 Ext4Inode::read_data(self, data)?;
@@ -202,7 +211,7 @@ impl ExtInode {
             }
         }
         if data.len() > 128 {
-            Ext4InodeExtension::read_data(self, &data[128..], encoding)?;
+            Ext4InodeExtension::read_data(self, &data[128..])?;
         }
         Ok(())
     }
@@ -233,7 +242,6 @@ impl ExtInode {
                     self.data_size.div_ceil(block_size as u64),
                     self.number_of_blocks,
                 );
-
                 if format_version == 4 && self.flags & EXT_INODE_FLAG_HAS_EXTENTS != 0 {
                     let mut extents_tree: ExtExtentsTree =
                         ExtExtentsTree::new(block_size, number_of_blocks);
@@ -272,7 +280,9 @@ impl ExtInode {
                     }
                 }
             }
-        };
+        }
+        self.data_reference_is_read = true;
+
         Ok(())
     }
 }
@@ -345,7 +355,7 @@ mod tests {
         let mut test_struct = ExtInode::new();
 
         let test_data: Vec<u8> = get_test_data_ext2();
-        test_struct.read_data(2, &test_data, &CharacterEncoding::Utf8)?;
+        test_struct.read_data(2, &test_data)?;
 
         assert_eq!(test_struct.file_mode, 0o100644);
         assert_eq!(test_struct.owner_identifier, 1000);
@@ -381,7 +391,7 @@ mod tests {
         let mut test_struct = ExtInode::new();
 
         let test_data: Vec<u8> = get_test_data_ext3();
-        test_struct.read_data(3, &test_data, &CharacterEncoding::Utf8)?;
+        test_struct.read_data(3, &test_data)?;
 
         assert_eq!(test_struct.file_mode, 0o100664);
         assert_eq!(test_struct.owner_identifier, 1000);
@@ -417,7 +427,7 @@ mod tests {
         let mut test_struct = ExtInode::new();
 
         let test_data: Vec<u8> = get_test_data_ext4();
-        test_struct.read_data(4, &test_data, &CharacterEncoding::Utf8)?;
+        test_struct.read_data(4, &test_data)?;
 
         assert_eq!(test_struct.file_mode, 0o100644);
         assert_eq!(test_struct.owner_identifier, 1000);
