@@ -91,29 +91,26 @@ impl VhdxFileEntry {
                 Err(keramics_core::error_trace_new!("No sub file entries"))
             }
             VhdxFileEntry::Root { image } => match image.get_layer_by_index(sub_file_entry_index) {
-                Ok(vhdx_layer) => {
-                    let media_size: u64 = match vhdx_layer.read() {
+                Ok(image_layer) => {
+                    let media_size: u64 = match image_layer.read() {
                         Ok(vhd_file) => vhd_file.media_size,
                         Err(error) => {
                             return Err(keramics_core::error_trace_new_with_error!(
-                                "Unable to obtain read lock on VHDX layer",
+                                "Unable to obtain read lock on image layer",
                                 error
                             ));
                         }
                     };
                     Ok(VhdxFileEntry::Layer {
                         index: sub_file_entry_index,
-                        layer: vhdx_layer.clone(),
+                        layer: image_layer.clone(),
                         size: media_size,
                     })
                 }
                 Err(mut error) => {
                     keramics_core::error_trace_add_frame!(
                         error,
-                        format!(
-                            "Unable to retrieve VHDX image layer: {}",
-                            sub_file_entry_index
-                        )
+                        format!("Unable to retrieve image layer: {}", sub_file_entry_index)
                     );
                     return Err(error);
                 }
@@ -183,10 +180,10 @@ mod tests {
         let name: PathComponent = file_entry.get_name();
         assert_eq!(name, PathComponent::Root);
 
-        let vhdx_layer: VhdxImageLayer = test_image.get_layer_by_index(0)?;
+        let vhdx_image_layer: VhdxImageLayer = test_image.get_layer_by_index(0)?;
         let file_entry = VhdxFileEntry::Layer {
             index: 0,
-            layer: vhdx_layer.clone(),
+            layer: vhdx_image_layer.clone(),
             size: 4194304,
         };
 
@@ -209,10 +206,10 @@ mod tests {
         let size: u64 = file_entry.get_size();
         assert_eq!(size, 0);
 
-        let vhdx_layer: VhdxImageLayer = test_image.get_layer_by_index(0)?;
+        let vhdx_image_layer: VhdxImageLayer = test_image.get_layer_by_index(0)?;
         let file_entry = VhdxFileEntry::Layer {
             index: 0,
-            layer: vhdx_layer.clone(),
+            layer: vhdx_image_layer.clone(),
             size: 4194304,
         };
 
@@ -235,10 +232,10 @@ mod tests {
         let number_of_sub_file_entries: usize = file_entry.get_number_of_sub_file_entries();
         assert_eq!(number_of_sub_file_entries, 2);
 
-        let vhdx_layer: VhdxImageLayer = test_image.get_layer_by_index(0)?;
+        let vhdx_image_layer: VhdxImageLayer = test_image.get_layer_by_index(0)?;
         let file_entry = VhdxFileEntry::Layer {
             index: 0,
-            layer: vhdx_layer.clone(),
+            layer: vhdx_image_layer.clone(),
             size: 4194304,
         };
 
@@ -281,10 +278,10 @@ mod tests {
 
         assert_eq!(file_entry.is_root_file_entry(), true);
 
-        let vhdx_layer: VhdxImageLayer = test_image.get_layer_by_index(0)?;
+        let vhdx_image_layer: VhdxImageLayer = test_image.get_layer_by_index(0)?;
         let file_entry = VhdxFileEntry::Layer {
             index: 0,
-            layer: vhdx_layer.clone(),
+            layer: vhdx_image_layer.clone(),
             size: 4194304,
         };
 
