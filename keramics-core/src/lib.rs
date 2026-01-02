@@ -12,6 +12,7 @@
  */
 
 mod data_stream;
+mod debug_trace;
 mod enums;
 mod errors;
 mod fake_data_stream;
@@ -21,6 +22,7 @@ pub mod mediator;
 mod os_data_stream;
 
 pub use data_stream::{DataStream, DataStreamReference};
+pub use debug_trace::DebugTrace;
 pub use enums::ByteOrder;
 pub use errors::ErrorTrace;
 pub use fake_data_stream::{FakeDataStream, open_fake_data_stream};
