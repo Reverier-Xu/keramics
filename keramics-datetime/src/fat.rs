@@ -60,9 +60,9 @@ fn fat_get_number_of_seconds(date: u16, time: u16) -> u32 {
 #[inline(always)]
 fn fat_get_number_of_seconds_with_fraction(date: u16, time: u16, fraction: u8) -> (u32, u32) {
     let seconds: u32 = fat_get_number_of_seconds(date, time);
-    let milliseconds: u32 = (seconds * 100) + (fraction as u32);
+    let milliseconds: u64 = ((seconds as u64) * 100) + (fraction as u64);
 
-    (milliseconds / 100, milliseconds % 100)
+    ((milliseconds / 100) as u32, (milliseconds % 100) as u32)
 }
 
 /// Retrieves time values.
@@ -263,10 +263,45 @@ impl fmt::Display for FatTimeDate10Ms {
 mod tests {
     use super::*;
 
-    // TODO: add tests for fat_get_date_values
-    // TODO: add tests for fat_get_number_of_seconds
-    // TODO: add tests for fat_get_time_values
-    // TODO: add tests for fat_get_time_values_with_fraction
+    #[test]
+    fn test_fat_get_date_values() {
+        let (year, month, day_of_month): (i16, u8, u8) = fat_get_date_values(0x3d0c);
+        assert_eq!(year, 2010);
+        assert_eq!(month, 8);
+        assert_eq!(day_of_month, 12);
+    }
+
+    #[test]
+    fn test_fat_get_number_of_seconds() {
+        let number_of_seconds: u32 = fat_get_number_of_seconds(0x3d0c, 0xa8d0);
+        assert_eq!(number_of_seconds, 968792792);
+    }
+
+    #[test]
+    fn test_fat_get_number_of_seconds_with_fraction() {
+        let (number_of_seconds, fraction): (u32, u32) =
+            fat_get_number_of_seconds_with_fraction(0x3d0c, 0xa8d0, 0x7d);
+        assert_eq!(number_of_seconds, 968792793);
+        assert_eq!(fraction, 25);
+    }
+
+    #[test]
+    fn test_fat_get_time_values() {
+        let (hours, minutes, seconds): (u8, u8, u8) = fat_get_time_values(0xa8d0);
+        assert_eq!(hours, 21);
+        assert_eq!(minutes, 6);
+        assert_eq!(seconds, 32);
+    }
+
+    #[test]
+    fn test_fat_get_time_values_with_fraction() {
+        let (hours, minutes, seconds, fraction): (u8, u8, u8, u8) =
+            fat_get_time_values_with_fraction(0xa8d0, 0x7d);
+        assert_eq!(hours, 21);
+        assert_eq!(minutes, 6);
+        assert_eq!(seconds, 33);
+        assert_eq!(fraction, 25);
+    }
 
     #[test]
     fn test_fat_date_from_bytes() {
@@ -277,11 +312,27 @@ mod tests {
     }
 
     #[test]
+    fn test_fat_date_get_number_of_seconds() {
+        let test_struct: FatDate = FatDate::new(0x3d0c);
+
+        let number_of_seconds: u32 = test_struct.get_number_of_seconds();
+        assert_eq!(number_of_seconds, 968716800);
+    }
+
+    #[test]
     fn test_fat_date_to_iso8601_string() {
         let test_struct: FatDate = FatDate::new(0x3d0c);
 
         let string: String = test_struct.to_iso8601_string();
         assert_eq!(string.as_str(), "2010-08-12");
+    }
+
+    #[test]
+    fn test_fat_date_to_string() {
+        let test_struct: FatDate = FatDate::new(0x3d0c);
+
+        let string: String = test_struct.to_string();
+        assert_eq!(string.as_str(), "2010-08-12 (0x3d0c)");
     }
 
     #[test]
@@ -294,11 +345,27 @@ mod tests {
     }
 
     #[test]
+    fn test_fat_time_date_get_number_of_seconds() {
+        let test_struct: FatTimeDate = FatTimeDate::new(0x3d0c, 0xa8d0);
+
+        let number_of_seconds: u32 = test_struct.get_number_of_seconds();
+        assert_eq!(number_of_seconds, 968792792);
+    }
+
+    #[test]
     fn test_fat_time_date_to_iso8601_string() {
         let test_struct: FatTimeDate = FatTimeDate::new(0x3d0c, 0xa8d0);
 
         let string: String = test_struct.to_iso8601_string();
         assert_eq!(string.as_str(), "2010-08-12T21:06:32");
+    }
+
+    #[test]
+    fn test_fat_time_date_to_string() {
+        let test_struct: FatTimeDate = FatTimeDate::new(0x3d0c, 0xa8d0);
+
+        let string: String = test_struct.to_string();
+        assert_eq!(string.as_str(), "2010-08-12T21:06:32 (0x3d0c:0xa8d0)");
     }
 
     #[test]
@@ -312,10 +379,30 @@ mod tests {
     }
 
     #[test]
+    fn test_fat_time_date_10ms_get_number_of_seconds() {
+        let test_struct: FatTimeDate10Ms = FatTimeDate10Ms::new(0x3d0c, 0xa8d0, 0x7d);
+
+        let (number_of_seconds, fraction): (u32, u32) = test_struct.get_number_of_seconds();
+        assert_eq!(number_of_seconds, 968792793);
+        assert_eq!(fraction, 25);
+    }
+
+    #[test]
     fn test_fat_time_date_10ms_to_iso8601_string() {
         let test_struct: FatTimeDate10Ms = FatTimeDate10Ms::new(0x3d0c, 0xa8d0, 0x7d);
 
         let string: String = test_struct.to_iso8601_string();
         assert_eq!(string.as_str(), "2010-08-12T21:06:33.25");
+    }
+
+    #[test]
+    fn test_fat_time_date_10ms_to_string() {
+        let test_struct: FatTimeDate10Ms = FatTimeDate10Ms::new(0x3d0c, 0xa8d0, 0x7d);
+
+        let string: String = test_struct.to_string();
+        assert_eq!(
+            string.as_str(),
+            "2010-08-12T21:06:33.25 (0x3d0c:0xa8d0:0x7d)"
+        );
     }
 }
