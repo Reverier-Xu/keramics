@@ -110,7 +110,8 @@ impl UdifFile {
             self.has_block_ranges = false;
             self.media_size = file_footer.data_fork_size;
         } else {
-            if file_footer.plist_size == 0 || file_footer.plist_size > 65536 {
+            // Note that 16777216 is an arbitrary chosen limit.
+            if file_footer.plist_size == 0 || file_footer.plist_size > 16777216 {
                 return Err(keramics_core::error_trace_new!("Unsupported data size"));
             }
             let mut data: Vec<u8> = vec![0; file_footer.plist_size as usize];
@@ -220,21 +221,25 @@ impl UdifFile {
                             table_index, entry_index,
                         )));
                     }
-                    if block_table_entry.data_offset < file_footer.data_fork_offset
-                        || block_table_entry.data_offset >= data_fork_end_offset
+                    if block_table_entry.entry_type != 0x00000000
+                        && block_table_entry.entry_type != 0x00000002
                     {
-                        return Err(keramics_core::error_trace_new!(format!(
-                            "Unsupported block table: {} entry: {} data offset value out of bounds",
-                            table_index, entry_index,
-                        )));
-                    }
-                    if block_table_entry.data_size
-                        > data_fork_end_offset - block_table_entry.data_offset
-                    {
-                        return Err(keramics_core::error_trace_new!(format!(
-                            "Unsupported block table: {} entry: {} data size value out of bounds",
-                            table_index, entry_index,
-                        )));
+                        if block_table_entry.data_offset < file_footer.data_fork_offset
+                            || block_table_entry.data_offset >= data_fork_end_offset
+                        {
+                            return Err(keramics_core::error_trace_new!(format!(
+                                "Unsupported block table: {} entry: {} data offset value out of bounds",
+                                table_index, entry_index,
+                            )));
+                        }
+                        if block_table_entry.data_size
+                            > data_fork_end_offset - block_table_entry.data_offset
+                        {
+                            return Err(keramics_core::error_trace_new!(format!(
+                                "Unsupported block table: {} entry: {} data size value out of bounds",
+                                table_index, entry_index,
+                            )));
+                        }
                     }
                     let media_size: u64 =
                         block_table_entry.number_of_sectors * self.bytes_per_sector as u64;
@@ -300,12 +305,11 @@ impl UdifFile {
             self.has_block_ranges = true;
             self.media_size = media_offset;
 
-            let block_tree_data_size: u64 =
-                media_sector.div_ceil(16384) * 16384 * self.bytes_per_sector as u64;
+            let block_tree_data_size: u64 = media_sector * (self.bytes_per_sector as u64);
 
             self.block_tree = BlockTree::<UdifBlockRange>::new(
                 block_tree_data_size,
-                16384,
+                0,
                 self.bytes_per_sector as u64,
             );
             while let Some(block_range) = block_ranges.pop() {
