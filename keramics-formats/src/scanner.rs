@@ -30,6 +30,7 @@ use super::udif::constants::*;
 use super::vhd::constants::*;
 use super::vhdx::constants::*;
 use super::vmdk::constants::*;
+use super::xfs::constants::*;
 
 /// Format scanner.
 pub struct FormatScanner {
@@ -200,6 +201,16 @@ impl FormatScanner {
             PatternType::BoundToStart,
             3,
             NTFS_FILE_SYSTEM_SIGNATURE,
+        ));
+    }
+
+    /// Adds X File System (XFS) signatures.
+    pub fn add_xfs_signatures(&mut self) {
+        self.signature_scanner.add_signature(Signature::new(
+            "xfs1",
+            PatternType::BoundToStart,
+            0,
+            XFS_SUPERBLOCK_SIGNATURE,
         ));
     }
 
@@ -382,6 +393,7 @@ impl FormatScanner {
                 "vhd1" => FormatIdentifier::Vhd,
                 "vhdx1" => FormatIdentifier::Vhdx,
                 "vmdk1" | "vmdk2" => FormatIdentifier::Vmdk,
+                "xfs1" => FormatIdentifier::Xfs,
                 _ => FormatIdentifier::Unknown,
             };
             scan_results.insert(format_identifier);
@@ -417,6 +429,7 @@ mod tests {
         format_scanner.add_vhd_signatures();
         format_scanner.add_vhdx_signatures();
         format_scanner.add_vmdk_signatures();
+        format_scanner.add_xfs_signatures();
 
         format_scanner.build()
     }
@@ -438,6 +451,7 @@ mod tests {
         format_scanner.add_vhd_signatures();
         format_scanner.add_vhdx_signatures();
         format_scanner.add_vmdk_signatures();
+        format_scanner.add_xfs_signatures();
 
         match format_scanner.build() {
             Ok(_) => {}
@@ -456,6 +470,22 @@ mod tests {
 
         assert_eq!(scan_results.len(), 1);
         assert_eq!(scan_results.iter().next(), Some(&FormatIdentifier::Qcow));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_scan_data_stream_with_xfs() -> Result<(), ErrorTrace> {
+        let mut format_scanner: FormatScanner = FormatScanner::new();
+        format_scanner.add_xfs_signatures();
+        format_scanner.build()?;
+
+        let data_stream: DataStreamReference = keramics_core::open_fake_data_stream(b"XFSB");
+        let scan_results: HashSet<FormatIdentifier> =
+            format_scanner.scan_data_stream(&data_stream)?;
+
+        assert_eq!(scan_results.len(), 1);
+        assert_eq!(scan_results.iter().next(), Some(&FormatIdentifier::Xfs));
 
         Ok(())
     }
