@@ -12,6 +12,8 @@
  * under the License.
  */
 
+pub mod fat;
 pub mod xfs;
 
+pub use fat::{FatFileEntry, FatFileSystem, FatFormat};
 pub use xfs::{XfsFileEntry, XfsFileSystem};

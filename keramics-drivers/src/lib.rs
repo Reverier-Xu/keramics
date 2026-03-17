@@ -18,7 +18,7 @@ pub mod resolver;
 pub mod source;
 pub mod volume;
 
-pub use filesystem::{XfsFileEntry, XfsFileSystem};
+pub use filesystem::{FatFileEntry, FatFileSystem, FatFormat, XfsFileEntry, XfsFileSystem};
 pub use image::{
     EwfImage, EwfMediaType, PdiImage, PdiImageLayer, QcowCompressionMethod, QcowEncryptionMethod,
     QcowFile, SparseBundleImage, SparseImageFile, SplitRawImage, UdifCompressionMethod, UdifFile,
