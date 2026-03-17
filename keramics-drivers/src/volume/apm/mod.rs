@@ -11,10 +11,8 @@
  * under the License.
  */
 
-pub mod apm;
-pub mod gpt;
-pub mod mbr;
+mod partition;
+mod volume_system;
 
-pub use apm::{ApmPartition, ApmVolumeSystem};
-pub use gpt::{GptPartition, GptVolumeSystem};
-pub use mbr::{MbrPartition, MbrVolumeSystem};
+pub use partition::ApmPartition;
+pub use volume_system::ApmVolumeSystem;

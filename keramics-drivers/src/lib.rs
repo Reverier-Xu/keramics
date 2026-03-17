@@ -25,6 +25,7 @@ pub use source::{
     ObservedDataSource, ProbeCachedDataSource, SegmentedDataSource, SegmentedSourceSegment,
     SliceDataSource, open_local_data_source,
 };
+pub use volume::{ApmPartition, ApmVolumeSystem};
 pub use volume::{GptPartition, GptVolumeSystem, MbrPartition, MbrVolumeSystem};
 
 #[cfg(test)]
