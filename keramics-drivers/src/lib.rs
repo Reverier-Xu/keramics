@@ -16,7 +16,7 @@ pub mod resolver;
 pub mod source;
 pub mod volume;
 
-pub use image::{SparseBundleImage, SparseImageFile, SplitRawImage};
+pub use image::{EwfImage, EwfMediaType, SparseBundleImage, SparseImageFile, SplitRawImage};
 pub use resolver::{
     LocalSourceResolver, SourceResolver, SourceResolverReference, open_local_source_resolver,
 };

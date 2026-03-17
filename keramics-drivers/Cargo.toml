@@ -16,8 +16,10 @@ path = "src/lib.rs"
 
 [dependencies]
 keramics-checksums = { version = "0.0.1", path = "../keramics-checksums" }
+keramics-compression = { version = "0.0.1", path = "../keramics-compression" }
 keramics-core = { version = "0.0.1", path = "../keramics-core" }
 keramics-types = { version = "0.0.1", path = "../keramics-types" }
 
 [dev-dependencies]
+keramics-hashes = { version = "0.0.1", path = "../keramics-hashes" }
 tempfile = { version = "3.23.0" }
