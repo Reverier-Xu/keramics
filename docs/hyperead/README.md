@@ -44,6 +44,10 @@ The document set is organized as follows:
    - Defines `keramics-drivers` as a parallel, intentionally separate API rather than a compatibility layer over `keramics-formats`.
    - Explains the staged porting plan and the eventual deprecation path for `keramics-formats`.
 
+7. `docs/hyperead/07-next-phase-development-plan.md`
+   - A checkpoint document comparing the current `keramics-drivers` implementation against the migration plan and `keramics-formats` coverage.
+   - Recommends the next execution phase: finish shared runtime primitives first, then use EWF to validate the architecture before a broader parity push.
+
 Recommended reading order:
 
 1. Read `docs/hyperead/06-keramics-drivers-crate-migration-plan.md` first.
@@ -52,4 +56,5 @@ Recommended reading order:
 4. Read the target architecture fourth.
 5. Read the EWF redesign fifth.
 6. Read the rewrite plan sixth.
-7. Use the validation document as the implementation completion checklist.
+7. Read the next-phase plan seventh.
+8. Use the validation document as the implementation completion checklist.
