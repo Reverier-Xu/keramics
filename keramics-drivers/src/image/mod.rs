@@ -17,6 +17,7 @@ pub mod sparsebundle;
 pub mod sparseimage;
 pub mod splitraw;
 pub mod vhd;
+pub mod vhdx;
 
 pub use ewf::{EwfImage, EwfMediaType};
 pub use qcow::{QcowCompressionMethod, QcowEncryptionMethod, QcowFile};
@@ -24,3 +25,4 @@ pub use sparsebundle::SparseBundleImage;
 pub use sparseimage::SparseImageFile;
 pub use splitraw::SplitRawImage;
 pub use vhd::{VhdDiskType, VhdFile};
+pub use vhdx::VhdxFile;
