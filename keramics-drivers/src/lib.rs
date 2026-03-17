@@ -12,6 +12,9 @@
  * under the License.
  */
 
+mod format_identifier;
+mod scanner;
+
 pub mod filesystem;
 pub mod image;
 pub mod resolver;
@@ -22,6 +25,7 @@ pub use filesystem::{
     ExtFileEntry, ExtFileSystem, FatFileEntry, FatFileSystem, FatFormat, HfsFileEntry,
     HfsFileSystem, HfsFormat, NtfsFileEntry, NtfsFileSystem, XfsFileEntry, XfsFileSystem,
 };
+pub use format_identifier::FormatIdentifier;
 pub use image::{
     EwfImage, EwfMediaType, PdiImage, PdiImageLayer, QcowCompressionMethod, QcowEncryptionMethod,
     QcowFile, SparseBundleImage, SparseImageFile, SplitRawImage, UdifCompressionMethod, UdifFile,
@@ -30,6 +34,7 @@ pub use image::{
 pub use resolver::{
     LocalSourceResolver, SourceResolver, SourceResolverReference, open_local_source_resolver,
 };
+pub use scanner::FormatScanner;
 pub use source::{
     DataSource, DataSourceCapabilities, DataSourceCursor, DataSourceReadConcurrency,
     DataSourceReadStats, DataSourceReadStatsSnapshot, DataSourceReference, DataSourceSeekCost,
