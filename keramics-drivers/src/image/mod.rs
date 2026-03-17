@@ -11,6 +11,8 @@
  * under the License.
  */
 
+pub mod sparsebundle;
 pub mod splitraw;
 
+pub use sparsebundle::SparseBundleImage;
 pub use splitraw::SplitRawImage;
