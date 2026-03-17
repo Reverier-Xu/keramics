@@ -54,6 +54,11 @@ impl Ucs2CharacterMappings {
     pub fn len(&self) -> usize {
         self.mappings.len()
     }
+
+    /// Determines if there are no mappings.
+    pub fn is_empty(&self) -> bool {
+        self.mappings.is_empty()
+    }
 }
 
 impl From<&[(u16, u16)]> for Ucs2CharacterMappings {

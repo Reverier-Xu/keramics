@@ -428,6 +428,7 @@ impl Bzip2Context {
     }
 
     /// Reads block data from a bitstream.
+    #[allow(clippy::too_many_arguments)]
     fn read_block_data(
         &self,
         bitstream: &mut Bzip2Bitstream,

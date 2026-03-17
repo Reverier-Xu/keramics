@@ -11,6 +11,8 @@
  * under the License.
  */
 
+#![allow(clippy::duplicated_attributes)]
+
 mod adc;
 mod bzip2;
 mod deflate;
@@ -32,3 +34,63 @@ pub use lzvn::LzvnContext;
 pub use lzx::LzxContext;
 pub use lzxpress::{LzxpressContext, LzxpressHuffmanContext};
 pub use zlib::ZlibContext;
+
+impl Default for AdcContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for Bzip2Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for DeflateContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for LzfseContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for Lznt1Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for LzvnContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for LzxContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for LzxpressContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for LzxpressHuffmanContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for ZlibContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}

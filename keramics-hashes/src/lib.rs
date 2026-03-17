@@ -24,3 +24,33 @@ pub use sha224::Sha224Context;
 pub use sha256::Sha256Context;
 pub use sha512::Sha512Context;
 pub use traits::DigestHashContext;
+
+impl Default for Md5Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for Sha1Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for Sha224Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for Sha256Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for Sha512Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}

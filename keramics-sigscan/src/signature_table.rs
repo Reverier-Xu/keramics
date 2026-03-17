@@ -136,14 +136,14 @@ impl SignatureTable {
         if self.mediator.debug_output {
             self.mediator
                 .debug_print("SignatureTable::get_most_significant_pattern_offset {\n");
-            if result.is_none() {
-                self.mediator
-                    .debug_print("    most_significant_pattern_offset: N/A\n");
-            } else {
+            if let Some(most_significant_pattern_offset) = result {
                 self.mediator.debug_print(format!(
                     "    most_significant_pattern_offset: {}\n",
-                    result.unwrap(),
+                    most_significant_pattern_offset,
                 ));
+            } else {
+                self.mediator
+                    .debug_print("    most_significant_pattern_offset: N/A\n");
             }
             self.mediator.debug_print("}\n\n");
         }

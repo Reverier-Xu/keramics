@@ -173,6 +173,7 @@ impl Lznt1Context {
     }
 
     /// Decompress a block.
+    #[allow(clippy::too_many_arguments)]
     fn decompress_block(
         &self,
         block_size: usize,

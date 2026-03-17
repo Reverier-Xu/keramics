@@ -122,3 +122,9 @@ pub use windows1255::{DecoderWindows1255, EncoderWindows1255};
 pub use windows1256::{DecoderWindows1256, EncoderWindows1256};
 pub use windows1257::{DecoderWindows1257, EncoderWindows1257};
 pub use windows1258::{DecoderWindows1258, EncoderWindows1258};
+
+impl Default for Base64Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}

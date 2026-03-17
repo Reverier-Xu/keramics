@@ -93,6 +93,7 @@ pub(super) struct LzfseBitstream<'a> {
     pub data_offset: usize,
 
     /// Size of the byte stream in bytes.
+    #[allow(dead_code)]
     pub data_size: usize,
 
     /// Bits buffer.
@@ -823,6 +824,7 @@ impl LzfseContext {
     }
 
     /// Decompress a LZFSE compressed block.
+    #[allow(clippy::too_many_arguments)]
     fn decompress_block(
         &self,
         decoder: &LzfseDecoder,

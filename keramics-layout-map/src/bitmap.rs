@@ -14,7 +14,9 @@
 use crate::enums::{BitOrder, DataType};
 
 pub(crate) struct BitmapLayout {
+    #[allow(dead_code)]
     pub data_type: DataType,
+    #[allow(dead_code)]
     pub bit_order: BitOrder,
 }
 

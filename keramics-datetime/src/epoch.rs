@@ -24,6 +24,7 @@ pub struct Epoch {
 }
 
 impl Epoch {
+    #[allow(dead_code)]
     pub fn new(year: i16, month: u8, day_of_month: u8) -> Self {
         Self {
             year,

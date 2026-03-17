@@ -29,3 +29,9 @@ pub use enums::PatternType;
 pub use scan_context::ScanContext;
 pub use scanner::Scanner;
 pub use signature::Signature;
+
+impl Default for Scanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}

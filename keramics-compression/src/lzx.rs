@@ -523,6 +523,7 @@ impl LzxContext {
     }
 
     /// Decompresses a Huffman encoded block.
+    #[allow(clippy::too_many_arguments)]
     fn decompress_huffmann_encoded_block(
         &self,
         bitstream: &mut LzxBitstream,

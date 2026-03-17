@@ -55,6 +55,11 @@ impl Utf16CharacterMappings {
     pub fn len(&self) -> usize {
         self.mappings.len()
     }
+
+    /// Determines if there are no mappings.
+    pub fn is_empty(&self) -> bool {
+        self.mappings.is_empty()
+    }
 }
 
 impl From<&[(u32, u32)]> for Utf16CharacterMappings {
