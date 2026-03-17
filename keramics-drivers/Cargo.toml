@@ -15,4 +15,6 @@ name = "keramics_drivers"
 path = "src/lib.rs"
 
 [dependencies]
+keramics-checksums = { version = "0.0.1", path = "../keramics-checksums" }
 keramics-core = { version = "0.0.1", path = "../keramics-core" }
+keramics-types = { version = "0.0.1", path = "../keramics-types" }
