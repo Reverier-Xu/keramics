@@ -12,7 +12,9 @@
  */
 
 pub mod sparsebundle;
+pub mod sparseimage;
 pub mod splitraw;
 
 pub use sparsebundle::SparseBundleImage;
+pub use sparseimage::SparseImageFile;
 pub use splitraw::SplitRawImage;
