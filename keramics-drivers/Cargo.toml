@@ -18,6 +18,7 @@ path = "src/lib.rs"
 keramics-checksums = { version = "0.0.1", path = "../keramics-checksums" }
 keramics-compression = { version = "0.0.1", path = "../keramics-compression" }
 keramics-core = { version = "0.0.1", path = "../keramics-core" }
+keramics-encodings = { version = "0.0.1", path = "../keramics-encodings" }
 keramics-types = { version = "0.0.1", path = "../keramics-types" }
 
 [dev-dependencies]
