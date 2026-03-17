@@ -6,6 +6,7 @@ members = [
     "keramics-compression",
     "keramics-core",
     "keramics-datetime",
+    "keramics-drivers",
     "keramics-encodings",
     "keramics-formats",
     "keramics-hashes",

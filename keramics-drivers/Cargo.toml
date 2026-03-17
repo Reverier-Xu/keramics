@@ -1,0 +1,18 @@
+[package]
+name = "keramics-drivers"
+description = "Keramics concurrent-read storage drivers"
+authors = { workspace = true }
+categories = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+version = { workspace = true }
+
+[lib]
+name = "keramics_drivers"
+path = "src/lib.rs"
+
+[dependencies]
+keramics-core = { version = "0.0.1", path = "../keramics-core" }
