@@ -84,12 +84,10 @@ impl ApmVolumeSystem {
                 }
                 Ok(partition)
             }
-            None => {
-                return Err(keramics_core::error_trace_new!(format!(
-                    "No partition with index: {}",
-                    partition_index
-                )));
-            }
+            None => Err(keramics_core::error_trace_new!(format!(
+                "No partition with index: {}",
+                partition_index
+            ))),
         }
     }
 

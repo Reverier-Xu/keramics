@@ -112,7 +112,7 @@ impl QcowFileEntry {
                         error,
                         format!("Unable to retrieve image layer: {}", sub_file_entry_index)
                     );
-                    return Err(error);
+                    Err(error)
                 }
             },
         }

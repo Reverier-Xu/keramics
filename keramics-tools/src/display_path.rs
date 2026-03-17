@@ -61,15 +61,15 @@ impl DisplayPath {
     pub fn escape_path_component(&self, path_component: &PathComponent) -> String {
         match path_component {
             PathComponent::ByteString(byte_string) => {
-                let mut character_decoder: CharacterDecoder = byte_string.get_character_decoder();
+                let character_decoder: CharacterDecoder = byte_string.get_character_decoder();
 
                 let mut string_parts: Vec<String> = Vec::new();
 
-                while let Some(result) = character_decoder.next() {
+                for result in character_decoder {
                     match result {
                         Ok(code_points) => {
                             for code_point in code_points {
-                                let string: String = match char::from_u32(code_point as u32) {
+                                let string: String = match char::from_u32(code_point) {
                                     Some(unicode_character) => {
                                         match self
                                             .translation_table
@@ -187,12 +187,9 @@ impl DisplayPath {
             VfsLocation::Layer { vfs_type, .. } => match vfs_type {
                 VfsType::Gpt => match self.vfs_resolver.get_file_entry_by_location(vfs_location) {
                     Ok(vfs_file_entry) => match vfs_file_entry {
-                        Some(VfsFileEntry::Gpt(gpt_file_entry)) => {
-                            match gpt_file_entry.get_identifier() {
-                                Some(identifier) => Some(format!("/gpt{{{}}}", identifier)),
-                                None => None,
-                            }
-                        }
+                        Some(VfsFileEntry::Gpt(gpt_file_entry)) => gpt_file_entry
+                            .get_identifier()
+                            .map(|identifier| format!("/gpt{{{}}}", identifier)),
                         _ => None,
                     },
                     Err(mut error) => {

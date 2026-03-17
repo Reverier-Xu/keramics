@@ -38,10 +38,7 @@ impl VfsDataFork {
         match self {
             VfsDataFork::DataStream(_) => None,
             VfsDataFork::Hfs(_) => None,
-            VfsDataFork::Ntfs(data_fork) => match data_fork.get_name() {
-                Some(name) => Some(PathComponent::from(name)),
-                None => None,
-            },
+            VfsDataFork::Ntfs(data_fork) => data_fork.get_name().map(PathComponent::from),
         }
     }
 }

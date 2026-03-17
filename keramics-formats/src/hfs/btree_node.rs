@@ -75,11 +75,11 @@ impl HfsBtreeNode {
             self.offset,
             &data[0..14],
             14,
-            HfsBtreeNodeDescriptor::debug_read_data(&data)
+            HfsBtreeNodeDescriptor::debug_read_data(data)
         );
         let mut node_descriptor: HfsBtreeNodeDescriptor = HfsBtreeNodeDescriptor::new();
 
-        match node_descriptor.read_data(&data) {
+        match node_descriptor.read_data(data) {
             Ok(_) => {}
             Err(mut error) => {
                 keramics_core::error_trace_add_frame!(error, "Unable to read node descriptor");
@@ -132,7 +132,7 @@ impl HfsBtreeNode {
 
         while let Some(node_record) = records_iterator.next() {
             let next_record_offset: usize = match records_iterator.peek() {
-                Some(node_record) => node_record.offset as usize,
+                Some(node_record) => node_record.offset,
                 None => record_offsets_data_offset,
             };
             node_record.size = next_record_offset - node_record.offset;

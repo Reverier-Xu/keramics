@@ -152,7 +152,7 @@ impl HfsExtentsOverflowFile {
                 }
             } else if record_index > 0 {
                 if key.identifier >= identifier {
-                    let data_offset: usize = last_key.size as usize;
+                    let data_offset: usize = last_key.size;
 
                     if data_offset + 4 > last_record_data.len() {
                         return Err(keramics_core::error_trace_new!(format!(
@@ -203,7 +203,7 @@ impl HfsExtentsOverflowFile {
                     "Invalid record index value out of bounds"
                 ));
             }
-            let data_offset: usize = last_key.size as usize;
+            let data_offset: usize = last_key.size;
 
             if data_offset + 4 > last_record_data.len() {
                 return Err(keramics_core::error_trace_new!(format!(
@@ -277,7 +277,7 @@ impl HfsExtentsOverflowFile {
                 for data_offset in (8..20).step_by(4) {
                     let data_end_offset = data_offset + 4;
 
-                    if &record_data[data_offset..data_end_offset] == [0; 4] {
+                    if record_data[data_offset..data_end_offset] == [0; 4] {
                         break;
                     }
                     let mut extent_descriptor: HfsExtentDescriptor = HfsExtentDescriptor::new();
@@ -310,7 +310,7 @@ impl HfsExtentsOverflowFile {
                 for data_offset in (12..76).step_by(8) {
                     let data_end_offset = data_offset + 8;
 
-                    if &record_data[data_offset..data_end_offset] == [0; 8] {
+                    if record_data[data_offset..data_end_offset] == [0; 8] {
                         break;
                     }
                     let mut extent_descriptor: HfsExtentDescriptor = HfsExtentDescriptor::new();

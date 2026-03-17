@@ -166,7 +166,7 @@ impl HfsAttributesFile {
                 }
             } else if record_index > 0 {
                 if key.identifier >= identifier {
-                    let data_offset: usize = last_key.size as usize;
+                    let data_offset: usize = last_key.size;
 
                     if data_offset + 4 > last_record_data.len() {
                         return Err(keramics_core::error_trace_new!(format!(
@@ -217,7 +217,7 @@ impl HfsAttributesFile {
                     "Invalid record index value out of bounds"
                 ));
             }
-            let data_offset: usize = last_key.size as usize;
+            let data_offset: usize = last_key.size;
 
             if data_offset + 4 > last_record_data.len() {
                 return Err(keramics_core::error_trace_new!(format!(
@@ -284,7 +284,7 @@ impl HfsAttributesFile {
         key: &HfsAttributeKey,
         record_data: &[u8],
     ) -> Result<HfsAttributeRecord, ErrorTrace> {
-        let data_offset: usize = key.size as usize;
+        let data_offset: usize = key.size;
 
         if data_offset + 4 > record_data.len() {
             return Err(keramics_core::error_trace_new!(format!(

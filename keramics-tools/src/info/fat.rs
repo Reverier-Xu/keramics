@@ -126,7 +126,7 @@ impl FatFileEntryInfo {
             DateTime::FatTimeDate(fat_date_time) => fat_date_time.to_iso8601_string(),
             DateTime::FatTimeDate10Ms(fat_date_time_10ms) => fat_date_time_10ms.to_iso8601_string(),
             DateTime::NotSet => String::from("Not set (0)"),
-            _ => return String::from("Unsupported date time"),
+            _ => String::from("Unsupported date time"),
         }
     }
 }

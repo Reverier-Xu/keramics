@@ -216,13 +216,11 @@ impl ExtBlockNumbersTree {
                 }
             }
             if create_new_block_range {
-                if self.mediator.debug_output {
-                    if number_of_ranges > 0 {
-                        let last_block_range: &ExtBlockRange = &block_ranges[number_of_ranges - 1];
+                if self.mediator.debug_output && number_of_ranges > 0 {
+                    let last_block_range: &ExtBlockRange = &block_ranges[number_of_ranges - 1];
 
-                        self.mediator
-                            .debug_print(format!("{:#?}\n\n", last_block_range));
-                    }
+                    self.mediator
+                        .debug_print(format!("{:#?}\n\n", last_block_range));
                 }
                 let range_type: ExtBlockRangeType = if block_number == 0 {
                     ExtBlockRangeType::Sparse

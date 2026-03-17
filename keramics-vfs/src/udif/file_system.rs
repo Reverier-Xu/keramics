@@ -52,19 +52,9 @@ impl UdifFileSystem {
                 if path.get_number_of_components() > 2 {
                     return false;
                 }
-                if path_component != "udif1" {
-                    false
-                } else {
-                    true
-                }
+                path_component == "udif1"
             }
-            None => {
-                if path.is_empty() {
-                    false
-                } else {
-                    true
-                }
-            }
+            None => !path.is_empty(),
         }
     }
 
@@ -72,12 +62,10 @@ impl UdifFileSystem {
     pub(crate) fn get_bytes_per_sector(&self) -> Result<u32, ErrorTrace> {
         match self.file.read() {
             Ok(udif_file) => Ok(udif_file.bytes_per_sector as u32),
-            Err(error) => {
-                return Err(keramics_core::error_trace_new_with_error!(
-                    "Unable to obtain read lock on UDIF file",
-                    error
-                ));
-            }
+            Err(error) => Err(keramics_core::error_trace_new_with_error!(
+                "Unable to obtain read lock on UDIF file",
+                error
+            )),
         }
     }
 

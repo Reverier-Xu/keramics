@@ -254,7 +254,7 @@ impl HfsFileEntry {
                     "Invalid symbolic link target size values out of bounds"
                 ));
             }
-            let mut block_stream: HfsBlockStream = match self.get_block_stream(&fork_descriptor) {
+            let mut block_stream: HfsBlockStream = match self.get_block_stream(fork_descriptor) {
                 Ok(block_stream) => block_stream,
                 Err(mut error) => {
                     keramics_core::error_trace_add_frame!(error, "Unable to retrieve block stream");
@@ -284,7 +284,7 @@ impl HfsFileEntry {
             Some(fork_descriptor) => fork_descriptor,
             None => return Ok(None),
         };
-        match self.get_block_stream(&fork_descriptor) {
+        match self.get_block_stream(fork_descriptor) {
             Ok(block_stream) => Ok(Some(Arc::new(RwLock::new(block_stream)))),
             Err(mut error) => {
                 keramics_core::error_trace_add_frame!(error, "Unable to retrieve block stream");
@@ -299,7 +299,7 @@ impl HfsFileEntry {
             Some(fork_descriptor) => fork_descriptor,
             None => return Ok(None),
         };
-        match self.get_block_stream(&fork_descriptor) {
+        match self.get_block_stream(fork_descriptor) {
             Ok(block_stream) => Ok(Some(HfsFork::new(
                 HfsForkType::Data,
                 Arc::new(RwLock::new(block_stream)),
@@ -325,7 +325,7 @@ impl HfsFileEntry {
             Some(fork_descriptor) => fork_descriptor,
             None => return Ok(None),
         };
-        match self.get_block_stream(&fork_descriptor) {
+        match self.get_block_stream(fork_descriptor) {
             Ok(block_stream) => Ok(Some(HfsFork::new(
                 HfsForkType::Resource,
                 Arc::new(RwLock::new(block_stream)),
@@ -365,7 +365,7 @@ impl HfsFileEntry {
         attribute_record: &HfsAttributeRecord,
     ) -> Result<DataStreamReference, ErrorTrace> {
         match attribute_record {
-            HfsAttributeRecord::Extents(extents_attribute_record) => {
+            HfsAttributeRecord::Extents(_extents_attribute_record) => {
                 todo!();
             }
             HfsAttributeRecord::ForkData(fork_data_attribute_record) => {
@@ -650,33 +650,33 @@ impl HfsFileEntry {
 
     /// Reads the indirect node.
     pub(super) fn read_indirect_node(&mut self) -> Result<(), ErrorTrace> {
-        if let Some(link_reference) = self.get_link_reference() {
-            if *link_reference > 2 {
-                match self
-                    .catalog_file
-                    .get_directory_entry_by_identifier(&self.data_stream, *link_reference)
-                {
-                    Ok(Some(directory_entry)) => {
-                        self.indirect_node = Some(directory_entry);
-                    }
-                    Ok(None) => {
-                        return Err(keramics_core::error_trace_new!(format!(
-                            "Missing directory entry: {}",
+        if let Some(link_reference) = self.get_link_reference()
+            && *link_reference > 2
+        {
+            match self
+                .catalog_file
+                .get_directory_entry_by_identifier(&self.data_stream, *link_reference)
+            {
+                Ok(Some(directory_entry)) => {
+                    self.indirect_node = Some(directory_entry);
+                }
+                Ok(None) => {
+                    return Err(keramics_core::error_trace_new!(format!(
+                        "Missing directory entry: {}",
+                        *link_reference
+                    )));
+                }
+                Err(mut error) => {
+                    keramics_core::error_trace_add_frame!(
+                        error,
+                        format!(
+                            "Unable to retrieve directory entry: {} from catalog file",
                             *link_reference
-                        )));
-                    }
-                    Err(mut error) => {
-                        keramics_core::error_trace_add_frame!(
-                            error,
-                            format!(
-                                "Unable to retrieve directory entry: {} from catalog file",
-                                *link_reference
-                            )
-                        );
-                        return Err(error);
-                    }
-                };
-            }
+                        )
+                    );
+                    return Err(error);
+                }
+            };
         }
         Ok(())
     }

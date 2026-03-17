@@ -72,14 +72,10 @@ impl NtfsDirectoryEntries {
             Some(directory_entry) => {
                 if directory_entry.file_name.name_space == NTFS_NAME_SPACE_WINDOWS
                     && directory_entry.short_file_name.is_some()
+                    && let Some(short_name) = self.short_names.get(&directory_entry.file_reference)
                 {
-                    match self.short_names.get(&directory_entry.file_reference) {
-                        Some(short_name) => {
-                            // TODO: consider removing the short name.
-                            directory_entry.short_file_name = Some(short_name.clone());
-                        }
-                        None => {}
-                    }
+                    // TODO: consider removing the short name.
+                    directory_entry.short_file_name = Some(short_name.clone());
                 }
                 Ok(directory_entry)
             }

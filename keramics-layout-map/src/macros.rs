@@ -115,12 +115,10 @@ impl FromMeta for MethodsOptions {
         match item {
             syn::Meta::List(meta_list) => match syn::parse2::<Self>(meta_list.tokens.clone()) {
                 Ok(methods_options) => Ok(methods_options),
-                Err(error) => {
-                    return Err(darling::Error::custom(format!(
-                        "Unable to parse methods with error: {}",
-                        error
-                    )));
-                }
+                Err(error) => Err(darling::Error::custom(format!(
+                    "Unable to parse methods with error: {}",
+                    error
+                ))),
             },
             _ => Err(darling::Error::custom("Unsupported item type for methods")),
         }
@@ -171,12 +169,10 @@ impl Parse for StructureMember {
                         )),
                     }
                 }
-                _ => {
-                    return Err(syn::Error::new(
-                        ident.span(),
-                        format!("Unsupported member attribute: {}", identifier),
-                    ));
-                }
+                _ => Err(syn::Error::new(
+                    ident.span(),
+                    format!("Unsupported member attribute: {}", identifier),
+                )),
             }
         } else {
             Err(syn::Error::new(
@@ -323,12 +319,10 @@ impl FromMeta for StructureOptions {
         match item {
             syn::Meta::List(meta_list) => match syn::parse2::<Self>(meta_list.tokens.clone()) {
                 Ok(methods_options) => Ok(methods_options),
-                Err(error) => {
-                    return Err(darling::Error::custom(format!(
-                        "Unable to parse structure with error: {}",
-                        error
-                    )));
-                }
+                Err(error) => Err(darling::Error::custom(format!(
+                    "Unable to parse structure with error: {}",
+                    error
+                ))),
             },
             _ => Err(darling::Error::custom(
                 "Unsupported item type for structure",
@@ -384,7 +378,7 @@ fn parse_bitmap_layout(
             )));
         }
     };
-    let bitmap_layout: BitmapLayout = BitmapLayout::new(data_type, bit_order);
+    let _bitmap_layout: BitmapLayout = BitmapLayout::new(data_type, bit_order);
 
     // TODO: add option for value size and byte order
     todo!();
@@ -547,13 +541,13 @@ fn parse_structure_layout(
                 }
                 match structure_layout.members.last_mut() {
                     Some(StructureLayoutMember::BitFields(bitfields_group)) => {
-                        if !bitfields_group.bitfields.is_empty() {
-                            if field_options.data_type != bitfields_group.data_type {
-                                return Err(ParseError::new(format!(
-                                    "Unsupported data type of field: {} expected BitField{}",
-                                    field_options.name, bitfields_group.size
-                                )));
-                            }
+                        if !bitfields_group.bitfields.is_empty()
+                            && field_options.data_type != bitfields_group.data_type
+                        {
+                            return Err(ParseError::new(format!(
+                                "Unsupported data type of field: {} expected BitField{}",
+                                field_options.name, bitfields_group.size
+                            )));
                         }
                         let bitfield: StructureLayoutBitField = StructureLayoutBitField::new(
                             &field_options.name,
@@ -583,19 +577,17 @@ fn parse_structure_layout(
                         name
                     )));
                 }
-                match structure_layout.members.last() {
-                    Some(StructureLayoutMember::BitFields(bitfields_group)) => {
-                        if !bitfields_group.is_full() {
-                            return Err(ParseError::new(format!(
-                                "Incomplete bitfields group before field: {} in layout map of: {}",
-                                field_options.name, name
-                            )));
-                        }
-                    }
-                    _ => {}
+                if let Some(StructureLayoutMember::BitFields(bitfields_group)) =
+                    structure_layout.members.last()
+                    && !bitfields_group.is_full()
+                {
+                    return Err(ParseError::new(format!(
+                        "Incomplete bitfields group before field: {} in layout map of: {}",
+                        field_options.name, name
+                    )));
                 }
                 let field_member: StructureLayoutMember =
-                    parse_structure_layout_member(&name, &field_options)?;
+                    parse_structure_layout_member(&name, field_options)?;
 
                 structure_layout.members.push(field_member);
             }

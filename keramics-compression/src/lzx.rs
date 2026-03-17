@@ -260,7 +260,7 @@ impl LzxContext {
         DebugTrace::print_field(
             "code_sizes",
             debug_format_array(
-                &aligned_offsets_code_sizes
+                aligned_offsets_code_sizes
                     .iter()
                     .map(|&element| element.to_string())
                     .collect::<Vec<String>>()
@@ -674,7 +674,7 @@ impl LzxContext {
         DebugTrace::print_field(
             "code_sizes",
             debug_format_array(
-                &pre_code_sizes
+                pre_code_sizes
                     .iter()
                     .map(|&element| element.to_string())
                     .collect::<Vec<String>>()

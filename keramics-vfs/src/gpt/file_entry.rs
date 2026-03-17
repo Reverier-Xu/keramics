@@ -131,7 +131,7 @@ impl GptFileEntry {
                             error,
                             format!("Unable to retrieve GPT partition: {}", sub_file_entry_index)
                         );
-                        return Err(error);
+                        Err(error)
                     }
                 }
             }

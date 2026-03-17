@@ -87,7 +87,7 @@ impl EwfHeader2 {
         let mut object_storage: EwfUtf16ObjectStorage =
             EwfUtf16ObjectStorage::new(&data[data_offset..], byte_order);
 
-        let number_of_categories: u8 = match object_storage.next_line().as_deref() {
+        let _number_of_categories: u8 = match object_storage.next_line().as_deref() {
             // "1"
             Some([0x0031]) => 1,
             // "3"
@@ -214,7 +214,7 @@ impl EwfHeader2 {
         header_values: &mut HashMap<EwfHeaderValueType, EwfHeaderValue>,
     ) -> Result<(), ErrorTrace> {
         // Note that 16777216 is an arbitrary chosen limit.
-        if data_size < 2 || data_size > 16777216 {
+        if !(2..=16777216).contains(&data_size) {
             return Err(keramics_core::error_trace_new!(format!(
                 "Unsupported header2 data size: {} value out of bounds",
                 data_size

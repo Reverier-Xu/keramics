@@ -119,7 +119,7 @@ impl MbrFileEntry {
                             error,
                             format!("Unable to retrieve MBR partition: {}", sub_file_entry_index)
                         );
-                        return Err(error);
+                        Err(error)
                     }
                 }
             }

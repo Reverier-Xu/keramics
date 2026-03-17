@@ -109,7 +109,7 @@ impl Path {
 
     /// Determines if the path is relative.
     pub fn is_relative(&self) -> bool {
-        self.components.len() >= 1 && self.components[0] != PathComponent::Root
+        !self.components.is_empty() && self.components[0] != PathComponent::Root
     }
 
     /// Determines if the path represents the root.

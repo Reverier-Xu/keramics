@@ -116,24 +116,24 @@ impl Ext4InodeExtension {
         let data_end_offset: usize = data_offset + 4;
         let data_size: usize = data.len();
 
-        if data_end_offset < data_size {
-            if &data[data_offset..data_end_offset] == EXT_ATTRIBUTES_HEADER_SIGNATURE {
-                let attributes_block: ExtAttributesBlock = ExtAttributesBlock::new(data_end_offset);
+        if data_end_offset < data_size
+            && &data[data_offset..data_end_offset] == EXT_ATTRIBUTES_HEADER_SIGNATURE
+        {
+            let attributes_block: ExtAttributesBlock = ExtAttributesBlock::new(data_end_offset);
 
-                match attributes_block.read_entries(
-                    data,
-                    data_end_offset,
-                    data_size,
-                    &mut inode.attributes,
-                ) {
-                    Ok(_) => {}
-                    Err(mut error) => {
-                        keramics_core::error_trace_add_frame!(
-                            error,
-                            "Unable to read extended attributes"
-                        );
-                        return Err(error);
-                    }
+            match attributes_block.read_entries(
+                data,
+                data_end_offset,
+                data_size,
+                &mut inode.attributes,
+            ) {
+                Ok(_) => {}
+                Err(mut error) => {
+                    keramics_core::error_trace_add_frame!(
+                        error,
+                        "Unable to read extended attributes"
+                    );
+                    return Err(error);
                 }
             }
         }

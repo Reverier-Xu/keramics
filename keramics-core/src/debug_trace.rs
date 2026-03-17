@@ -40,7 +40,7 @@ impl DebugTrace {
                 "{} data of size: {} at offset: {} (0x{:08x})\n",
                 description, data_size, offset, offset
             ));
-            mediator.debug_print_data(&data, group);
+            mediator.debug_print_data(data, group);
         }
     }
 
@@ -51,7 +51,7 @@ impl DebugTrace {
 
         if mediator.debug_output {
             mediator.debug_print(format!("    {}\n", identifier));
-            mediator.debug_print_data(&data, true);
+            mediator.debug_print_data(data, true);
         }
     }
 

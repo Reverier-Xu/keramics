@@ -110,7 +110,7 @@ impl VfsFileSystem {
                             error,
                             "Unable to determine if fake file entry exists"
                         );
-                        return Err(error);
+                        Err(error)
                     }
                 }
             }
@@ -137,7 +137,7 @@ impl VfsFileSystem {
                             error,
                             "Unable to retrieve HFS file entry"
                         );
-                        return Err(error);
+                        Err(error)
                     }
                 }
             }
@@ -151,7 +151,7 @@ impl VfsFileSystem {
                             error,
                             "Unable to retrieve NTFS file entry"
                         );
-                        return Err(error);
+                        Err(error)
                     }
                 }
             }

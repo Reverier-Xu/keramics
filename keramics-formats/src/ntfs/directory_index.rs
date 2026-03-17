@@ -129,35 +129,32 @@ impl NtfsDirectoryIndex {
                 index_root_header.index_entry_size
             )));
         }
-        match mft_attributes
+        if let Some(mft_attribute) = mft_attributes
             .get_attribute_by_name_and_type(&None, NTFS_ATTRIBUTE_TYPE_STANDARD_INFORMATION)
         {
-            Some(mft_attribute) => {
-                let standard_information: NtfsStandardInformation =
-                    match NtfsStandardInformation::from_attribute(mft_attribute) {
-                        Ok(standard_information) => standard_information,
-                        Err(mut error) => {
-                            keramics_core::error_trace_add_frame!(
-                                error,
-                                "Unable to create standard information from attribute"
-                            );
-                            return Err(error);
-                        }
-                    };
-                // Note that recent version of NTFS support case-sensitive file names.
-                if standard_information.maximum_number_of_versions == 0
-                    && standard_information.version_number == 1
-                {
-                    self.use_case_folding = false;
-                }
+            let standard_information: NtfsStandardInformation =
+                match NtfsStandardInformation::from_attribute(mft_attribute) {
+                    Ok(standard_information) => standard_information,
+                    Err(mut error) => {
+                        keramics_core::error_trace_add_frame!(
+                            error,
+                            "Unable to create standard information from attribute"
+                        );
+                        return Err(error);
+                    }
+                };
+            // Note that recent version of NTFS support case-sensitive file names.
+            if standard_information.maximum_number_of_versions == 0
+                && standard_information.version_number == 1
+            {
+                self.use_case_folding = false;
             }
-            None => {}
         }
         // Note that the $INDEX_ALLOCATION attribute is optional.
-        match mft_attributes
+        if let Some(mft_attribute) = mft_attributes
             .get_attribute_for_group(i30_attribute_group, NTFS_ATTRIBUTE_TYPE_INDEX_ALLOCATION)
         {
-            Some(mft_attribute) => match self
+            match self
                 .index
                 .initialize(index_root_header.index_entry_size, mft_attribute)
             {
@@ -166,8 +163,7 @@ impl NtfsDirectoryIndex {
                     keramics_core::error_trace_add_frame!(error, "Unable to initialize index");
                     return Err(error);
                 }
-            },
-            None => {}
+            }
         };
 
         // The $BITMAP attribute is optional.
@@ -362,7 +358,7 @@ impl NtfsDirectoryIndex {
                         error,
                         "Unable to retrieve directory entry from node"
                     );
-                    return Err(error);
+                    Err(error)
                 }
             }
         } else {

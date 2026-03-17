@@ -78,7 +78,7 @@ impl ExtDirectoryEntries {
 
     /// Determines if the directory entries were read.
     pub fn is_read(&self) -> bool {
-        return self.is_read;
+        self.is_read
     }
 
     /// Reads the directory entries from block data.

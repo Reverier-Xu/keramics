@@ -209,15 +209,14 @@ impl NtfsMftAttribute {
             }
             let mediator = Mediator::current();
 
-            if mediator.debug_output {
-                if self.is_compressed()
-                    && non_resident_attribute.compression_unit_size == 0
-                    && non_resident_attribute.data_first_vcn == 0
-                {
-                    mediator.debug_print(
-                        "Attribute data flags set compression type but no compression unit size set\n",
-                    );
-                }
+            if mediator.debug_output
+                && self.is_compressed()
+                && non_resident_attribute.compression_unit_size == 0
+                && non_resident_attribute.data_first_vcn == 0
+            {
+                mediator.debug_print(
+                    "Attribute data flags set compression type but no compression unit size set\n",
+                );
             }
             data_offset += non_resident_attribute.get_non_resident_data_size();
         }

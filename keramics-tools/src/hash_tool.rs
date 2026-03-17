@@ -104,7 +104,7 @@ impl HashTool {
                 return Err(error);
             }
         };
-        let hash_string: String = match self.calculate_hash_from_data_stream(&data_stream) {
+        let hash_string: String = match self.calculate_hash_from_data_stream(data_stream) {
             Ok(hash) => hash,
             Err(mut error) => {
                 keramics_core::error_trace_add_frame!(

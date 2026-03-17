@@ -184,7 +184,7 @@ impl UdifFile {
 
                 let mut block_table = UdifBlockTable::new();
 
-                match block_table.read_data(&data) {
+                match block_table.read_data(data) {
                     Ok(_) => {}
                     Err(mut error) => {
                         keramics_core::error_trace_add_frame!(error, "Unable to read block table");

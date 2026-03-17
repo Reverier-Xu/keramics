@@ -57,7 +57,7 @@ impl<K: Hash + Eq + Copy, V> LruCache<K, V> {
     /// Retrieves a specific value from the cache.
     pub fn get(&mut self, key: &K) -> Option<&V> {
         match self.values.get(key) {
-            Some(entry) => Some(&(*entry).value),
+            Some(entry) => Some(&entry.value),
             None => None,
         }
     }
@@ -65,7 +65,7 @@ impl<K: Hash + Eq + Copy, V> LruCache<K, V> {
     /// Retrieves a specific mutable value from the cache.
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         match self.values.get_mut(key) {
-            Some(entry) => Some(&mut (*entry).value),
+            Some(entry) => Some(&mut entry.value),
             None => None,
         }
     }

@@ -347,7 +347,7 @@ impl PathComponent {
     ) -> Result<Ucs2String, ErrorTrace> {
         let result: Result<Ucs2String, ErrorTrace> = match &self {
             PathComponent::ByteString(byte_string) => {
-                Ucs2String::from_byte_string_with_case_folding(&byte_string, mappings)
+                Ucs2String::from_byte_string_with_case_folding(byte_string, mappings)
             }
             PathComponent::Current => Ok(Ucs2String::from(".")),
             PathComponent::OsString(os_string) => {
@@ -413,7 +413,7 @@ impl PathComponent {
     ) -> Result<Utf16String, ErrorTrace> {
         let result: Result<Utf16String, ErrorTrace> = match &self {
             PathComponent::ByteString(byte_string) => {
-                Utf16String::from_byte_string_with_case_folding(&byte_string, mappings)
+                Utf16String::from_byte_string_with_case_folding(byte_string, mappings)
             }
             PathComponent::Current => Ok(Utf16String::from(".")),
             PathComponent::OsString(os_string) => {

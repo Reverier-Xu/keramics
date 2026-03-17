@@ -85,7 +85,7 @@ impl PdiImage {
 
     /// Opens a storage media image.
     pub fn open(&mut self, file_resolver: &FileResolverReference) -> Result<(), ErrorTrace> {
-        match self.read_disk_descriptor(&file_resolver, "DiskDescriptor.xml") {
+        match self.read_disk_descriptor(file_resolver, "DiskDescriptor.xml") {
             Ok(_) => {}
             Err(mut error) => {
                 keramics_core::error_trace_add_frame!(error, "Unable to read DiskDescriptor.xml");
@@ -645,15 +645,14 @@ impl PdiImage {
     /// Reads snapshots from DiskDescriptor.xml.
     fn read_snapshots(&mut self, xml_element: &XmlElement) -> Result<(), ErrorTrace> {
         for sub_xml_element in xml_element.sub_elements.iter() {
-            match sub_xml_element.name.as_str() {
-                "Shot" => match self.read_snapshot(sub_xml_element) {
+            if sub_xml_element.name.as_str() == "Shot" {
+                match self.read_snapshot(sub_xml_element) {
                     Ok(descriptor_snapshot) => self.snapshots.push(descriptor_snapshot),
                     Err(mut error) => {
                         keramics_core::error_trace_add_frame!(error, "Unable to read snapshot");
                         return Err(error);
                     }
-                },
-                _ => {}
+                }
             }
         }
         Ok(())
@@ -723,15 +722,14 @@ impl PdiImage {
     /// Reads storage data from DiskDescriptor.xml.
     fn read_storage_data(&mut self, xml_element: &XmlElement) -> Result<(), ErrorTrace> {
         for sub_xml_element in xml_element.sub_elements.iter() {
-            match sub_xml_element.name.as_str() {
-                "Storage" => match self.read_storage(sub_xml_element) {
+            if sub_xml_element.name.as_str() == "Storage" {
+                match self.read_storage(sub_xml_element) {
                     Ok(descriptor_extent) => self.extents.push(descriptor_extent),
                     Err(mut error) => {
                         keramics_core::error_trace_add_frame!(error, "Unable to read storage");
                         return Err(error);
                     }
-                },
-                _ => {}
+                }
             }
         }
         Ok(())

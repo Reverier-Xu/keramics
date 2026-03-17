@@ -272,13 +272,13 @@ impl ExtSuperblock {
         }
         self.number_of_inodes_per_block_group = bytes_to_u32_le!(data, 40);
 
-        if self.incompatible_feature_flags & EXT_INCOMPATIBLE_FEATURE_FLAG_JOURNAL_DEVICE == 0 {
-            if self.number_of_inodes_per_block_group == 0 {
-                return Err(keramics_core::error_trace_new!(format!(
-                    "Invalid number of inodes per block group: {} value out of bounds",
-                    self.number_of_inodes_per_block_group
-                )));
-            }
+        if self.incompatible_feature_flags & EXT_INCOMPATIBLE_FEATURE_FLAG_JOURNAL_DEVICE == 0
+            && self.number_of_inodes_per_block_group == 0
+        {
+            return Err(keramics_core::error_trace_new!(format!(
+                "Invalid number of inodes per block group: {} value out of bounds",
+                self.number_of_inodes_per_block_group
+            )));
         }
         self.last_mount_time = PosixTime32::from_le_bytes(&data[44..48]);
         self.last_written_time = PosixTime32::from_le_bytes(&data[48..52]);

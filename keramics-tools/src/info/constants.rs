@@ -11,7 +11,7 @@
  * under the License.
  */
 
-pub const GTP_TYPE_IDENTIFIERS: &[(&'static str, &'static str); 135] = &[
+pub const GTP_TYPE_IDENTIFIERS: &[(&str, &str); 135] = &[
     ("00000000-0000-0000-0000-000000000000", "Unused entry"),
     (
         "01b41e1b-002a-453c-9f17-88793989ff8f",
@@ -302,7 +302,7 @@ pub const GTP_TYPE_IDENTIFIERS: &[(&'static str, &'static str); 135] = &[
     ("fe3a2a5d-4f32-41a7-b725-accc3285a309", "Chrome OS kernel"),
 ];
 
-pub const MBR_PARTITION_TYPES: &[(u8, &'static str); 91] = &[
+pub const MBR_PARTITION_TYPES: &[(u8, &str); 91] = &[
     (0x00, "Empty"),
     (0x01, "FAT12 (CHS)"),
     (0x02, "XENIX root"),

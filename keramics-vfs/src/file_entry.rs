@@ -193,10 +193,9 @@ impl VfsFileEntry {
             | VfsFileEntry::Vhdx(_)
             | VfsFileEntry::Vmdk(_) => None,
             VfsFileEntry::Ext(ext_file_entry) => Some(ext_file_entry.get_file_mode() as u32),
-            VfsFileEntry::Hfs(hfs_file_entry) => match hfs_file_entry.get_file_mode() {
-                Some(file_mode) => Some(*file_mode as u32),
-                None => None,
-            },
+            VfsFileEntry::Hfs(hfs_file_entry) => hfs_file_entry
+                .get_file_mode()
+                .map(|file_mode| *file_mode as u32),
             VfsFileEntry::Os(os_file_entry) => os_file_entry.get_file_mode(),
         }
     }
@@ -349,10 +348,7 @@ impl VfsFileEntry {
         match self {
             VfsFileEntry::Apm(apm_file_entry) => Some(apm_file_entry.get_name()),
             VfsFileEntry::Ewf(ewf_file_entry) => Some(ewf_file_entry.get_name()),
-            VfsFileEntry::Ext(ext_file_entry) => match ext_file_entry.get_name() {
-                Some(name) => Some(PathComponent::from(name)),
-                None => None,
-            },
+            VfsFileEntry::Ext(ext_file_entry) => ext_file_entry.get_name().map(PathComponent::from),
             VfsFileEntry::Fake(fake_file_entry) => {
                 let path_component: &PathComponent = fake_file_entry.get_name();
 
@@ -372,14 +368,10 @@ impl VfsFileEntry {
                 None => None,
             },
             VfsFileEntry::Mbr(mbr_file_entry) => Some(mbr_file_entry.get_name()),
-            VfsFileEntry::Ntfs(ntfs_file_entry) => match ntfs_file_entry.get_name() {
-                Some(name) => Some(PathComponent::from(name)),
-                None => None,
-            },
-            VfsFileEntry::Os(os_file_entry) => match os_file_entry.get_name() {
-                Some(name) => Some(PathComponent::from(name)),
-                None => None,
-            },
+            VfsFileEntry::Ntfs(ntfs_file_entry) => {
+                ntfs_file_entry.get_name().map(PathComponent::from)
+            }
+            VfsFileEntry::Os(os_file_entry) => os_file_entry.get_name().map(PathComponent::from),
             VfsFileEntry::Pdi(pdi_file_entry) => Some(pdi_file_entry.get_name()),
             VfsFileEntry::Qcow(qcow_file_entry) => Some(qcow_file_entry.get_name()),
             VfsFileEntry::SparseImage(sparseimage_file_entry) => {
@@ -752,7 +744,7 @@ impl VfsFileEntry {
             Ok(result) => Ok(result),
             Err(mut error) => {
                 keramics_core::error_trace_add_frame!(error, "Unable to retrieve data stream");
-                return Err(error);
+                Err(error)
             }
         }
     }

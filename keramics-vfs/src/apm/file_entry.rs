@@ -108,7 +108,7 @@ impl ApmFileEntry {
                             error,
                             format!("Unable to retrieve APM partition: {}", sub_file_entry_index)
                         );
-                        return Err(error);
+                        Err(error)
                     }
                 }
             }

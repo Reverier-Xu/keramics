@@ -98,7 +98,7 @@ impl ExtDirectoryTree {
             parent_inode_number
         ));
 
-        self.read_node_data(&data, 4, data_size, entries)
+        self.read_node_data(data, 4, data_size, entries)
     }
 
     /// Reads the directory tree node from a buffer.

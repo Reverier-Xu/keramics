@@ -75,11 +75,10 @@ impl GptVolumeSystem {
                     }
                 };
                 let partition_offset: u64 =
-                    partition_entry.start_block_number as u64 * self.bytes_per_sector as u64;
-                let partition_size: u64 = (partition_entry.end_block_number
-                    - partition_entry.start_block_number
-                    + 1) as u64
-                    * self.bytes_per_sector as u64;
+                    partition_entry.start_block_number * self.bytes_per_sector as u64;
+                let partition_size: u64 =
+                    (partition_entry.end_block_number - partition_entry.start_block_number + 1)
+                        * self.bytes_per_sector as u64;
 
                 let mut partition: GptPartition = GptPartition::new(
                     partition_entry.index,
@@ -100,12 +99,10 @@ impl GptVolumeSystem {
                 }
                 Ok(partition)
             }
-            None => {
-                return Err(keramics_core::error_trace_new!(format!(
-                    "No partition with index: {}",
-                    partition_index
-                )));
-            }
+            None => Err(keramics_core::error_trace_new!(format!(
+                "No partition with index: {}",
+                partition_index
+            ))),
         }
     }
 
@@ -155,11 +152,11 @@ impl GptVolumeSystem {
             }
         } else {
             for bytes_per_sector in Self::SUPPORTED_BYTES_PER_SECTOR.iter() {
-                match partition_table_header
+                if partition_table_header
                     .read_at_position(data_stream, SeekFrom::Start(*bytes_per_sector as u64))
+                    .is_ok()
                 {
-                    Ok(_) => self.bytes_per_sector = *bytes_per_sector,
-                    Err(_) => {}
+                    self.bytes_per_sector = *bytes_per_sector
                 };
                 if self.bytes_per_sector != 0 {
                     break;

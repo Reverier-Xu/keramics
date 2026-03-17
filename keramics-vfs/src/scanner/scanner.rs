@@ -388,22 +388,21 @@ impl VfsScanner {
                     return Err(error);
                 }
             };
-        match self.scan_for_format(&node_file_system, &node_vfs_location)? {
-            Some(sub_node_vfs_type) => {
-                let sub_node_path: Path = Path::from("/");
-                let sub_node_vfs_location: VfsLocation =
-                    node_vfs_location.new_with_layer(&sub_node_vfs_type, sub_node_path);
-                let mut sub_scan_node: VfsScanNode = VfsScanNode::new(sub_node_vfs_location);
+        if let Some(sub_node_vfs_type) =
+            self.scan_for_format(&node_file_system, &node_vfs_location)?
+        {
+            let sub_node_path: Path = Path::from("/");
+            let sub_node_vfs_location: VfsLocation =
+                node_vfs_location.new_with_layer(&sub_node_vfs_type, sub_node_path);
+            let mut sub_scan_node: VfsScanNode = VfsScanNode::new(sub_node_vfs_location);
 
-                self.scan_for_sub_nodes(
-                    scan_options,
-                    &node_file_system,
-                    &node_vfs_location,
-                    &mut sub_scan_node,
-                )?;
-                scan_node.sub_nodes.push(sub_scan_node);
-            }
-            None => {}
+            self.scan_for_sub_nodes(
+                scan_options,
+                &node_file_system,
+                &node_vfs_location,
+                &mut sub_scan_node,
+            )?;
+            scan_node.sub_nodes.push(sub_scan_node);
         }
         Ok(())
     }
@@ -546,8 +545,8 @@ impl VfsScanner {
                     }
                 }
             }
-            VfsType::Os => match self.scan_for_format(&file_system, vfs_location)? {
-                Some(sub_node_vfs_type) => {
+            VfsType::Os => {
+                if let Some(sub_node_vfs_type) = self.scan_for_format(file_system, vfs_location)? {
                     let sub_node_path: Path = Path::from("/");
                     let sub_node_vfs_location: VfsLocation =
                         vfs_location.new_with_layer(&sub_node_vfs_type, sub_node_path);
@@ -567,8 +566,7 @@ impl VfsScanner {
                     }
                     scan_node.sub_nodes.push(sub_scan_node);
                 }
-                None => {}
-            },
+            }
             VfsType::Pdi => {
                 let mut pdi_image: PdiImage = PdiImage::new();
 
@@ -927,23 +925,22 @@ impl VfsScanner {
             let node_vfs_location: VfsLocation = vfs_location.new_with_layer(vfs_type, node_path);
             let mut volume_scan_node: VfsScanNode = VfsScanNode::new(node_vfs_location);
 
-            match self.scan_for_format(&node_file_system, &volume_scan_node.location)? {
-                Some(sub_node_vfs_type) => {
-                    let sub_node_path: Path = Path::from("/");
-                    let sub_node_vfs_location: VfsLocation = volume_scan_node
-                        .location
-                        .new_with_layer(&sub_node_vfs_type, sub_node_path);
-                    let mut sub_scan_node: VfsScanNode = VfsScanNode::new(sub_node_vfs_location);
+            if let Some(sub_node_vfs_type) =
+                self.scan_for_format(&node_file_system, &volume_scan_node.location)?
+            {
+                let sub_node_path: Path = Path::from("/");
+                let sub_node_vfs_location: VfsLocation = volume_scan_node
+                    .location
+                    .new_with_layer(&sub_node_vfs_type, sub_node_path);
+                let mut sub_scan_node: VfsScanNode = VfsScanNode::new(sub_node_vfs_location);
 
-                    self.scan_for_sub_nodes(
-                        scan_options,
-                        &node_file_system,
-                        &volume_scan_node.location,
-                        &mut sub_scan_node,
-                    )?;
-                    volume_scan_node.sub_nodes.push(sub_scan_node);
-                }
-                None => {}
+                self.scan_for_sub_nodes(
+                    scan_options,
+                    &node_file_system,
+                    &volume_scan_node.location,
+                    &mut sub_scan_node,
+                )?;
+                volume_scan_node.sub_nodes.push(sub_scan_node);
             }
             scan_node.sub_nodes.push(volume_scan_node);
         }

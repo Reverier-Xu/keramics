@@ -287,7 +287,7 @@ fn main() -> ExitCode {
                 format_identifier
             ))),
         },
-        Some(Commands::Hierarchy(command_arguments)) => match &format_identifier {
+        Some(Commands::Hierarchy(_command_arguments)) => match &format_identifier {
             FormatIdentifier::Ext => {
                 ExtInfo::print_hierarchy(&data_stream, info_tool.character_encoding.as_ref())
             }

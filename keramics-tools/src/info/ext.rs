@@ -126,7 +126,7 @@ impl<'a> fmt::Display for ExtDateTimeInfo<'a> {
             DateTime::PosixTime64Ns(posix_time64ns) => {
                 write!(formatter, "{}", posix_time64ns.to_iso8601_string())
             }
-            _ => return write!(formatter, "Unsupported date time"),
+            _ => write!(formatter, "Unsupported date time"),
         }
     }
 }
@@ -632,8 +632,8 @@ impl ExtInfo {
     ) -> Result<ExtFileSystem, ErrorTrace> {
         let mut ext_file_system: ExtFileSystem = ExtFileSystem::new();
 
-        match character_encoding {
-            Some(encoding) => match ext_file_system.set_character_encoding(encoding) {
+        if let Some(encoding) = character_encoding {
+            match ext_file_system.set_character_encoding(encoding) {
                 Ok(_) => {}
                 Err(mut error) => {
                     keramics_core::error_trace_add_frame!(
@@ -642,8 +642,7 @@ impl ExtInfo {
                     );
                     return Err(error);
                 }
-            },
-            None => {}
+            }
         }
         match ext_file_system.read_data_stream(data_stream) {
             Ok(_) => {}

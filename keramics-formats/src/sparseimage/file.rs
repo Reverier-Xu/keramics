@@ -176,7 +176,7 @@ impl SparseImageFile {
             };
         }
         if mediator.debug_output {
-            if number_of_bands % 16 != 0 {
+            if !number_of_bands.is_multiple_of(16) {
                 mediator.debug_print("\n");
             }
             mediator.debug_print("    ],\n");
