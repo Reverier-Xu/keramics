@@ -19,7 +19,9 @@ use keramics_core::ErrorTrace;
 
 use crate::source::{DataSourceReference, ExtentMapDataSource, ExtentMapEntry, ExtentMapTarget};
 
+const VMDK_SPARSE_COWD_FILE_HEADER_SIGNATURE: &[u8; 4] = b"COWD";
 const VMDK_SPARSE_FILE_HEADER_SIGNATURE: &[u8; 4] = b"KDMV";
+const VMDK_COWD_GRAIN_TABLE_SIZE_BYTES: u64 = 4096 * 512;
 const VMDK_SPARSE_FILE_FLAG_USE_SECONDARY_GRAIN_DIRECTORY: u32 = 0x0000_0002;
 const VMDK_SPARSE_FILE_FLAG_HAS_GRAIN_COMPRESSION: u32 = 0x0001_0000;
 const VMDK_SPARSE_FILE_FLAG_HAS_DATA_MARKERS: u32 = 0x0002_0000;
@@ -35,6 +37,7 @@ pub enum VmdkCompressionMethod {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum VmdkDiskType {
     MonolithicSparse,
+    VmfsSparse,
     Unknown,
 }
 
@@ -53,6 +56,13 @@ struct VmdkSparseFileHeader {
     number_of_grain_table_entries: u32,
     secondary_grain_directory_start_sector: u64,
     primary_grain_directory_start_sector: u64,
+}
+
+struct VmdkSparseCowdFileHeader {
+    maximum_data_number_of_sectors: u32,
+    sectors_per_grain: u32,
+    grain_directory_start_sector: u32,
+    number_of_grain_directory_entries: u32,
 }
 
 struct VmdkDescriptorExtent {
@@ -81,8 +91,16 @@ pub struct VmdkFile {
 }
 
 impl VmdkFile {
-    /// Opens and parses a VMDK monolithic sparse file.
+    /// Opens and parses a VMDK sparse or COWD file.
     pub fn open(source: DataSourceReference) -> Result<Self, ErrorTrace> {
+        let mut signature = [0u8; 4];
+
+        source.read_exact_at(0, &mut signature)?;
+
+        if &signature == VMDK_SPARSE_COWD_FILE_HEADER_SIGNATURE {
+            return Self::open_cowd(source);
+        }
+
         let source_size = source.size()?;
         let file_header = VmdkSparseFileHeader::read_at(source.as_ref(), 0)?;
 
@@ -168,6 +186,29 @@ impl VmdkFile {
         })
     }
 
+    fn open_cowd(source: DataSourceReference) -> Result<Self, ErrorTrace> {
+        let source_size = source.size()?;
+        let file_header = VmdkSparseCowdFileHeader::read_at(source.as_ref(), 0)?;
+        let bytes_per_sector: u16 = 512;
+        let media_size = (file_header.maximum_data_number_of_sectors as u64)
+            .checked_mul(bytes_per_sector as u64)
+            .ok_or_else(|| ErrorTrace::new("VMDK COWD media size overflow".to_string()))?;
+        let extents =
+            build_sparse_cowd_extents(source.clone(), source_size, media_size, &file_header)?;
+        let logical_source: DataSourceReference = Arc::new(ExtentMapDataSource::new(extents)?);
+
+        Ok(Self {
+            disk_type: VmdkDiskType::VmfsSparse,
+            bytes_per_sector,
+            sectors_per_grain: file_header.sectors_per_grain as u64,
+            compression_method: VmdkCompressionMethod::None,
+            content_identifier: 0,
+            parent_content_identifier: None,
+            media_size,
+            logical_source,
+        })
+    }
+
     /// Retrieves the disk type.
     pub fn disk_type(&self) -> VmdkDiskType {
         self.disk_type
@@ -206,6 +247,61 @@ impl VmdkFile {
     /// Opens the logical media source.
     pub fn open_source(&self) -> DataSourceReference {
         self.logical_source.clone()
+    }
+}
+
+impl VmdkSparseCowdFileHeader {
+    fn read_at(source: &dyn crate::source::DataSource, offset: u64) -> Result<Self, ErrorTrace> {
+        let mut data = [0u8; 2048];
+
+        source.read_exact_at(offset, &mut data)?;
+
+        if &data[0..4] != VMDK_SPARSE_COWD_FILE_HEADER_SIGNATURE {
+            return Err(ErrorTrace::new(
+                "Unsupported VMDK sparse COWD file signature".to_string(),
+            ));
+        }
+
+        let format_version = u32::from_le_bytes([data[4], data[5], data[6], data[7]]);
+        if format_version != 1 {
+            return Err(ErrorTrace::new(format!(
+                "Unsupported VMDK sparse COWD file format version: {}",
+                format_version,
+            )));
+        }
+
+        let sectors_per_grain = u32::from_le_bytes([data[16], data[17], data[18], data[19]]);
+        let grain_directory_start_sector =
+            u32::from_le_bytes([data[20], data[21], data[22], data[23]]);
+        let number_of_grain_directory_entries =
+            u32::from_le_bytes([data[24], data[25], data[26], data[27]]);
+
+        if sectors_per_grain < 8 || sectors_per_grain & (sectors_per_grain - 1) != 0 {
+            return Err(ErrorTrace::new(
+                "Invalid VMDK sparse COWD sectors per grain value out of bounds".to_string(),
+            ));
+        }
+        if grain_directory_start_sector == 0 {
+            return Err(ErrorTrace::new(
+                "Invalid VMDK sparse COWD grain directory start sector value out of bounds"
+                    .to_string(),
+            ));
+        }
+        if number_of_grain_directory_entries == 0 {
+            return Err(ErrorTrace::new(
+                "Invalid VMDK sparse COWD number of grain directory entries value out of bounds"
+                    .to_string(),
+            ));
+        }
+
+        Ok(Self {
+            maximum_data_number_of_sectors: u32::from_le_bytes([
+                data[12], data[13], data[14], data[15],
+            ]),
+            sectors_per_grain,
+            grain_directory_start_sector,
+            number_of_grain_directory_entries,
+        })
     }
 }
 
@@ -609,6 +705,114 @@ fn build_sparse_extents(
     Ok(extents)
 }
 
+fn build_sparse_cowd_extents(
+    source: DataSourceReference,
+    source_size: u64,
+    media_size: u64,
+    file_header: &VmdkSparseCowdFileHeader,
+) -> Result<Vec<ExtentMapEntry>, ErrorTrace> {
+    let grain_size = (file_header.sectors_per_grain as u64)
+        .checked_mul(512)
+        .ok_or_else(|| ErrorTrace::new("VMDK COWD grain size overflow".to_string()))?;
+    let number_of_grains = media_size.div_ceil(grain_size);
+    let entries_per_grain_table = VMDK_COWD_GRAIN_TABLE_SIZE_BYTES / 4;
+    let grain_directory_offset = (file_header.grain_directory_start_sector as u64)
+        .checked_mul(512)
+        .ok_or_else(|| ErrorTrace::new("VMDK COWD grain directory offset overflow".to_string()))?;
+    let mut extents = Vec::new();
+    let mut current_extent: Option<ExtentMapEntry> = None;
+
+    for grain_index in 0..number_of_grains {
+        let grain_directory_index = grain_index / entries_per_grain_table;
+
+        if grain_directory_index >= file_header.number_of_grain_directory_entries as u64 {
+            return Err(ErrorTrace::new(format!(
+                "Invalid VMDK COWD grain directory index: {} value out of bounds",
+                grain_directory_index,
+            )));
+        }
+
+        let grain_directory_entry = read_u32_le(
+            source.as_ref(),
+            grain_directory_offset
+                .checked_add(grain_directory_index * 4)
+                .ok_or_else(|| {
+                    ErrorTrace::new("VMDK COWD grain directory entry offset overflow".to_string())
+                })?,
+        )?;
+        let grain_logical_offset = grain_index.checked_mul(grain_size).ok_or_else(|| {
+            ErrorTrace::new("VMDK COWD grain logical offset overflow".to_string())
+        })?;
+        let grain_logical_size = min(grain_size, media_size - grain_logical_offset);
+
+        let extent = if grain_directory_entry == 0 {
+            ExtentMapEntry {
+                logical_offset: grain_logical_offset,
+                size: grain_logical_size,
+                target: ExtentMapTarget::Zero,
+            }
+        } else {
+            let grain_table_offset =
+                (grain_directory_entry as u64)
+                    .checked_mul(512)
+                    .ok_or_else(|| {
+                        ErrorTrace::new("VMDK COWD grain table offset overflow".to_string())
+                    })?;
+            let grain_table_index = grain_index % entries_per_grain_table;
+            let sector_number = read_u32_le(
+                source.as_ref(),
+                grain_table_offset
+                    .checked_add(grain_table_index * 4)
+                    .ok_or_else(|| {
+                        ErrorTrace::new("VMDK COWD grain table entry offset overflow".to_string())
+                    })?,
+            )?;
+
+            if sector_number == 0 {
+                ExtentMapEntry {
+                    logical_offset: grain_logical_offset,
+                    size: grain_logical_size,
+                    target: ExtentMapTarget::Zero,
+                }
+            } else {
+                let grain_data_offset =
+                    (sector_number as u64).checked_mul(512).ok_or_else(|| {
+                        ErrorTrace::new("VMDK COWD grain data offset overflow".to_string())
+                    })?;
+                let grain_data_end = grain_data_offset
+                    .checked_add(grain_logical_size)
+                    .ok_or_else(|| {
+                        ErrorTrace::new("VMDK COWD grain data end overflow".to_string())
+                    })?;
+
+                if grain_data_end > source_size {
+                    return Err(ErrorTrace::new(format!(
+                        "VMDK COWD grain data exceeds file size at logical offset: {}",
+                        grain_logical_offset,
+                    )));
+                }
+
+                ExtentMapEntry {
+                    logical_offset: grain_logical_offset,
+                    size: grain_logical_size,
+                    target: ExtentMapTarget::Data {
+                        source: source.clone(),
+                        source_offset: grain_data_offset,
+                    },
+                }
+            }
+        };
+
+        current_extent = merge_extent(current_extent, extent, &mut extents);
+    }
+
+    if let Some(current_extent) = current_extent {
+        extents.push(current_extent);
+    }
+
+    Ok(extents)
+}
+
 fn merge_extent(
     current_extent: Option<ExtentMapEntry>,
     next_extent: ExtentMapEntry,
@@ -688,8 +892,35 @@ mod tests {
     }
 
     #[test]
+    fn test_open_cowd() -> Result<(), ErrorTrace> {
+        let file = open_file("../test_data/vmdk/ext2.cowd")?;
+
+        assert_eq!(file.disk_type(), VmdkDiskType::VmfsSparse);
+        assert_eq!(file.bytes_per_sector(), 512);
+        assert_eq!(file.sectors_per_grain(), 128);
+        assert_eq!(file.compression_method(), VmdkCompressionMethod::None);
+        assert_eq!(file.content_identifier(), 0);
+        assert_eq!(file.parent_content_identifier(), None);
+        assert_eq!(file.media_size(), 4_194_304);
+        Ok(())
+    }
+
+    #[test]
     fn test_open_source_capabilities() -> Result<(), ErrorTrace> {
         let file = open_file("../test_data/vmdk/ext2.vmdk")?;
+        let capabilities = file.open_source().capabilities();
+
+        assert_eq!(
+            capabilities.read_concurrency,
+            DataSourceReadConcurrency::Concurrent
+        );
+        assert_eq!(capabilities.seek_cost, DataSourceSeekCost::Cheap);
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_source_capabilities_cowd() -> Result<(), ErrorTrace> {
+        let file = open_file("../test_data/vmdk/ext2.cowd")?;
         let capabilities = file.open_source().capabilities();
 
         assert_eq!(
@@ -713,8 +944,30 @@ mod tests {
     }
 
     #[test]
+    fn test_open_source_cowd() -> Result<(), ErrorTrace> {
+        let file = open_file("../test_data/vmdk/ext2.cowd")?;
+        let source = file.open_source();
+        let mut data = vec![0; 2];
+
+        source.read_exact_at(1024 + 56, &mut data)?;
+
+        assert_eq!(data, [0x53, 0xef]);
+        Ok(())
+    }
+
+    #[test]
     fn test_read_media() -> Result<(), ErrorTrace> {
         let file = open_file("../test_data/vmdk/ext2.vmdk")?;
+        let (media_offset, md5_hash) = read_data_source_md5(file.open_source())?;
+
+        assert_eq!(media_offset, file.media_size());
+        assert_eq!(md5_hash.as_str(), "b1760d0b35a512ef56970df4e6f8c5d6");
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_media_cowd() -> Result<(), ErrorTrace> {
+        let file = open_file("../test_data/vmdk/ext2.cowd")?;
         let (media_offset, md5_hash) = read_data_source_md5(file.open_source())?;
 
         assert_eq!(media_offset, file.media_size());
