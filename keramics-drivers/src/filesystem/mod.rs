@@ -13,7 +13,9 @@
  */
 
 pub mod fat;
+pub mod hfs;
 pub mod xfs;
 
 pub use fat::{FatFileEntry, FatFileSystem, FatFormat};
+pub use hfs::{HfsFileEntry, HfsFileSystem, HfsFormat};
 pub use xfs::{XfsFileEntry, XfsFileSystem};
