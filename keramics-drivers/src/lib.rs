@@ -18,8 +18,8 @@ pub mod source;
 pub mod volume;
 
 pub use image::{
-    EwfImage, EwfMediaType, QcowCompressionMethod, QcowEncryptionMethod, QcowFile,
-    SparseBundleImage, SparseImageFile, SplitRawImage, UdifCompressionMethod, UdifFile,
+    EwfImage, EwfMediaType, PdiImage, PdiImageLayer, QcowCompressionMethod, QcowEncryptionMethod,
+    QcowFile, SparseBundleImage, SparseImageFile, SplitRawImage, UdifCompressionMethod, UdifFile,
     VhdDiskType, VhdFile, VhdxFile, VmdkCompressionMethod, VmdkDiskType, VmdkFile,
 };
 pub use resolver::{

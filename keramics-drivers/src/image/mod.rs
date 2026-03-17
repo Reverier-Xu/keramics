@@ -13,6 +13,7 @@
  */
 
 pub mod ewf;
+pub mod pdi;
 pub mod qcow;
 pub mod sparsebundle;
 pub mod sparseimage;
@@ -23,6 +24,7 @@ pub mod vhdx;
 pub mod vmdk;
 
 pub use ewf::{EwfImage, EwfMediaType};
+pub use pdi::{PdiImage, PdiImageLayer};
 pub use qcow::{QcowCompressionMethod, QcowEncryptionMethod, QcowFile};
 pub use sparsebundle::SparseBundleImage;
 pub use sparseimage::SparseImageFile;
