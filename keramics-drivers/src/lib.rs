@@ -11,13 +11,18 @@
  * under the License.
  */
 
+pub mod resolver;
 pub mod source;
 
+pub use resolver::{
+    LocalSourceResolver, SourceResolver, SourceResolverReference, open_local_source_resolver,
+};
 pub use source::{
     DataSource, DataSourceCapabilities, DataSourceCursor, DataSourceReadConcurrency,
     DataSourceReadStats, DataSourceReadStatsSnapshot, DataSourceReference, DataSourceSeekCost,
-    LocalDataSource, MemoryDataSource, ObservedDataSource, ProbeCachedDataSource, SliceDataSource,
-    open_local_data_source,
+    ExtentMapDataSource, ExtentMapEntry, ExtentMapTarget, LocalDataSource, MemoryDataSource,
+    ObservedDataSource, ProbeCachedDataSource, SegmentedDataSource, SegmentedSourceSegment,
+    SliceDataSource, open_local_data_source,
 };
 
 #[cfg(test)]

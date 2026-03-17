@@ -14,17 +14,22 @@
 mod capabilities;
 mod cursor;
 mod data_source;
+mod extent_map;
 mod local;
 mod memory;
 mod observed;
 mod probe_cache;
+mod segmented;
 mod slice;
+mod util;
 
 pub use capabilities::{DataSourceCapabilities, DataSourceReadConcurrency, DataSourceSeekCost};
 pub use cursor::DataSourceCursor;
 pub use data_source::{DataSource, DataSourceReference};
+pub use extent_map::{ExtentMapDataSource, ExtentMapEntry, ExtentMapTarget};
 pub use local::{LocalDataSource, open_local_data_source};
 pub use memory::MemoryDataSource;
 pub use observed::{DataSourceReadStats, DataSourceReadStatsSnapshot, ObservedDataSource};
 pub use probe_cache::ProbeCachedDataSource;
+pub use segmented::{SegmentedDataSource, SegmentedSourceSegment};
 pub use slice::SliceDataSource;
