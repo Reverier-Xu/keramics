@@ -11,10 +11,12 @@
  * under the License.
  */
 
+pub mod image;
 pub mod resolver;
 pub mod source;
 pub mod volume;
 
+pub use image::SplitRawImage;
 pub use resolver::{
     LocalSourceResolver, SourceResolver, SourceResolverReference, open_local_source_resolver,
 };
