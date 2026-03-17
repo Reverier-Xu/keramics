@@ -365,7 +365,8 @@ mod tests {
 
     use super::*;
     use crate::resolver::open_local_source_resolver;
-    use crate::tests::get_test_data_path;
+    use crate::source::{DataSourceReadConcurrency, DataSourceSeekCost};
+    use crate::tests::{get_test_data_path, read_data_source_md5};
 
     fn get_image() -> Result<SplitRawImage, ErrorTrace> {
         let path = PathBuf::from(get_test_data_path("splitraw"));
@@ -501,6 +502,20 @@ mod tests {
     }
 
     #[test]
+    fn test_open_source_capabilities() -> Result<(), ErrorTrace> {
+        let image = get_image()?;
+        let source = image.open_source()?;
+        let capabilities = source.capabilities();
+
+        assert_eq!(
+            capabilities.read_concurrency,
+            DataSourceReadConcurrency::Concurrent
+        );
+        assert_eq!(capabilities.seek_cost, DataSourceSeekCost::Cheap);
+        Ok(())
+    }
+
+    #[test]
     fn test_open_source_reads_across_segment_boundary() -> Result<(), ErrorTrace> {
         let image = get_image()?;
         let source = image.open_source()?;
@@ -529,6 +544,17 @@ mod tests {
         ];
 
         assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_media() -> Result<(), ErrorTrace> {
+        let image = get_image()?;
+        let source = image.open_source()?;
+        let (media_offset, md5_hash) = read_data_source_md5(source)?;
+
+        assert_eq!(media_offset, image.media_size());
+        assert_eq!(md5_hash.as_str(), "b1760d0b35a512ef56970df4e6f8c5d6");
         Ok(())
     }
 

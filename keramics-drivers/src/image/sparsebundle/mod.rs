@@ -282,7 +282,8 @@ mod tests {
 
     use super::*;
     use crate::resolver::open_local_source_resolver;
-    use crate::tests::get_test_data_path;
+    use crate::source::{DataSourceReadConcurrency, DataSourceSeekCost};
+    use crate::tests::{get_test_data_path, read_data_source_md5};
 
     fn get_image() -> Result<SparseBundleImage, ErrorTrace> {
         let path = PathBuf::from(get_test_data_path("sparsebundle/hfsplus.sparsebundle"));
@@ -311,6 +312,20 @@ mod tests {
         source.read_exact_at(1024, &mut data)?;
 
         assert_eq!(data, [0x00, 0x53]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_source_capabilities() -> Result<(), ErrorTrace> {
+        let image = get_image()?;
+        let source = image.open_source()?;
+        let capabilities = source.capabilities();
+
+        assert_eq!(
+            capabilities.read_concurrency,
+            DataSourceReadConcurrency::Concurrent
+        );
+        assert_eq!(capabilities.seek_cost, DataSourceSeekCost::Cheap);
         Ok(())
     }
 
@@ -365,6 +380,17 @@ mod tests {
 
         assert_eq!(image.number_of_bands(), 3);
         assert_eq!(data, b"abcd\0\0\0\0xy\0\0");
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_media() -> Result<(), ErrorTrace> {
+        let image = get_image()?;
+        let source = image.open_source()?;
+        let (media_offset, md5_hash) = read_data_source_md5(source)?;
+
+        assert_eq!(media_offset, image.media_size());
+        assert_eq!(md5_hash.as_str(), "7adf013daec71e509669a9315a6a173c");
         Ok(())
     }
 }

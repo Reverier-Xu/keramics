@@ -234,8 +234,10 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::source::{MemoryDataSource, open_local_data_source};
-    use crate::tests::get_test_data_path;
+    use crate::source::{
+        DataSourceReadConcurrency, DataSourceSeekCost, MemoryDataSource, open_local_data_source,
+    };
+    use crate::tests::{get_test_data_path, read_data_source_md5};
 
     fn get_file() -> Result<SparseImageFile, ErrorTrace> {
         let path = PathBuf::from(get_test_data_path("sparseimage/hfsplus.sparseimage"));
@@ -297,6 +299,20 @@ mod tests {
     }
 
     #[test]
+    fn test_open_source_capabilities() -> Result<(), ErrorTrace> {
+        let file = get_file()?;
+        let source = file.open_source()?;
+        let capabilities = source.capabilities();
+
+        assert_eq!(
+            capabilities.read_concurrency,
+            DataSourceReadConcurrency::Concurrent
+        );
+        assert_eq!(capabilities.seek_cost, DataSourceSeekCost::Cheap);
+        Ok(())
+    }
+
+    #[test]
     fn test_open_source_uses_band_mapping_and_zero_fill() -> Result<(), ErrorTrace> {
         let source: DataSourceReference = Arc::new(MemoryDataSource::new(build_sparseimage_data()));
         let file = SparseImageFile::open(source)?;
@@ -307,6 +323,17 @@ mod tests {
         assert_eq!(&data[0..4], b"AAAA");
         assert_eq!(&data[1024..1028], b"BBBB");
         assert_eq!(&data[2048..2052], &[0, 0, 0, 0]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_media() -> Result<(), ErrorTrace> {
+        let file = get_file()?;
+        let source = file.open_source()?;
+        let (media_offset, md5_hash) = read_data_source_md5(source)?;
+
+        assert_eq!(media_offset, file.media_size());
+        assert_eq!(md5_hash.as_str(), "22c35335e6fafcbfc2ef21f1839f228d");
         Ok(())
     }
 }

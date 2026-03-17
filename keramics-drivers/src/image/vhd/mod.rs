@@ -70,6 +70,21 @@ pub struct VhdFile {
 impl VhdFile {
     /// Opens and parses a VHD file.
     pub fn open(source: DataSourceReference) -> Result<Self, ErrorTrace> {
+        Self::open_internal(source, None)
+    }
+
+    /// Opens and parses a differential VHD file with its parent file.
+    pub fn open_with_parent(
+        source: DataSourceReference,
+        parent_file: &VhdFile,
+    ) -> Result<Self, ErrorTrace> {
+        Self::open_internal(source, Some(parent_file))
+    }
+
+    fn open_internal(
+        source: DataSourceReference,
+        parent_file: Option<&VhdFile>,
+    ) -> Result<Self, ErrorTrace> {
         let source_size = source.size()?;
         if source_size < 512 {
             return Err(ErrorTrace::new(
@@ -102,12 +117,38 @@ impl VhdFile {
                 let dynamic_header =
                     VhdDynamicDiskHeader::read_at(source.as_ref(), footer.next_offset)?;
 
-                if footer.disk_type == VHD_DISK_TYPE_DIFFERENTIAL
-                    || !dynamic_header.parent_identifier.is_nil()
+                let parent_source: Option<DataSourceReference> = if footer.disk_type
+                    == VHD_DISK_TYPE_DIFFERENTIAL
+                {
+                    let parent_file = parent_file.ok_or_else(|| {
+                        ErrorTrace::new(
+                            "Differential VHD files require an explicit parent file".to_string(),
+                        )
+                    })?;
+
+                    if dynamic_header.parent_identifier.is_nil() {
+                        return Err(ErrorTrace::new(
+                            "Differential VHD file is missing a parent identifier".to_string(),
+                        ));
+                    }
+                    if parent_file.identifier() != &dynamic_header.parent_identifier {
+                        return Err(ErrorTrace::new(format!(
+                            "Parent identifier: {} does not match identifier of parent file: {}",
+                            dynamic_header.parent_identifier,
+                            parent_file.identifier(),
+                        )));
+                    }
+
+                    Some(parent_file.open_source())
+                } else {
+                    None
+                };
+
+                if footer.disk_type == VHD_DISK_TYPE_DYNAMIC
+                    && !dynamic_header.parent_identifier.is_nil()
                 {
                     return Err(ErrorTrace::new(
-                        "Differential VHD files are not supported yet in keramics-drivers"
-                            .to_string(),
+                        "Dynamic VHD unexpectedly contains a parent identifier".to_string(),
                     ));
                 }
 
@@ -117,14 +158,23 @@ impl VhdFile {
                     media_size,
                     bytes_per_sector,
                     &dynamic_header,
+                    parent_source,
                 )?;
                 let logical_source: DataSourceReference =
                     Arc::new(ExtentMapDataSource::new(extents)?);
 
                 Ok(Self {
-                    disk_type: VhdDiskType::Dynamic,
+                    disk_type: if footer.disk_type == VHD_DISK_TYPE_DIFFERENTIAL {
+                        VhdDiskType::Differential
+                    } else {
+                        VhdDiskType::Dynamic
+                    },
                     identifier,
-                    parent_identifier: None,
+                    parent_identifier: if dynamic_header.parent_identifier.is_nil() {
+                        None
+                    } else {
+                        Some(dynamic_header.parent_identifier.clone())
+                    },
                     parent_name: if dynamic_header.parent_name.is_empty() {
                         None
                     } else {
@@ -289,6 +339,7 @@ fn build_dynamic_extents(
     media_size: u64,
     bytes_per_sector: u16,
     dynamic_header: &VhdDynamicDiskHeader,
+    parent_source: Option<DataSourceReference>,
 ) -> Result<Vec<ExtentMapEntry>, ErrorTrace> {
     let sectors_per_block = dynamic_header.block_size / (bytes_per_sector as u32);
     let sector_bitmap_size = (sectors_per_block / 8).div_ceil(512) * 512;
@@ -329,7 +380,13 @@ fn build_dynamic_extents(
             extents.push(ExtentMapEntry {
                 logical_offset: block_media_offset,
                 size: block_logical_size,
-                target: ExtentMapTarget::Zero,
+                target: match &parent_source {
+                    Some(parent_source) => ExtentMapTarget::Data {
+                        source: parent_source.clone(),
+                        source_offset: block_media_offset,
+                    },
+                    None => ExtentMapTarget::Zero,
+                },
             });
             continue;
         }
@@ -374,7 +431,13 @@ fn build_dynamic_extents(
                         source_offset: range_data_offset,
                     }
                 } else {
-                    ExtentMapTarget::Zero
+                    match &parent_source {
+                        Some(parent_source) => ExtentMapTarget::Data {
+                            source: parent_source.clone(),
+                            source_offset: range_media_offset,
+                        },
+                        None => ExtentMapTarget::Zero,
+                    }
                 },
             });
 
@@ -447,7 +510,9 @@ mod tests {
     use keramics_hashes::{DigestHashContext, Md5Context};
 
     use super::*;
-    use crate::source::{DataSourceCursor, open_local_data_source};
+    use crate::source::{
+        DataSourceCursor, DataSourceReadConcurrency, DataSourceSeekCost, open_local_data_source,
+    };
 
     fn read_media_from_file(file: &VhdFile) -> Result<(u64, String), ErrorTrace> {
         let source = file.open_source();
@@ -475,6 +540,14 @@ mod tests {
         VhdFile::open(source)
     }
 
+    fn open_file_with_parent(path: &str, parent_path: &str) -> Result<VhdFile, ErrorTrace> {
+        let path_buf = PathBuf::from(path);
+        let source = open_local_data_source(&path_buf)?;
+        let parent_file = open_file(parent_path)?;
+
+        VhdFile::open_with_parent(source, &parent_file)
+    }
+
     #[test]
     fn test_open_fixed() -> Result<(), ErrorTrace> {
         let file = open_file("../test_data/vhd/ntfs-parent.vhd")?;
@@ -497,6 +570,51 @@ mod tests {
     }
 
     #[test]
+    fn test_open_differential_requires_parent() -> Result<(), ErrorTrace> {
+        let path_buf = PathBuf::from("../test_data/vhd/ntfs-differential.vhd");
+        let source = open_local_data_source(&path_buf)?;
+
+        let result = VhdFile::open(source);
+
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_differential_with_parent() -> Result<(), ErrorTrace> {
+        let file = open_file_with_parent(
+            "../test_data/vhd/ntfs-differential.vhd",
+            "../test_data/vhd/ntfs-parent.vhd",
+        )?;
+
+        assert_eq!(file.disk_type(), VhdDiskType::Differential);
+        assert_eq!(file.bytes_per_sector(), 512);
+        assert_eq!(file.block_size(), 2_097_152);
+        assert_eq!(file.media_size(), 4_194_304);
+        assert_eq!(
+            file.parent_identifier().map(ToString::to_string),
+            Some("e7ea9200-8493-954e-a816-9572339be931".to_string())
+        );
+        assert_eq!(
+            file.parent_name(),
+            Some("C:\\Projects\\dfvfs\\test_data\\ntfs-parent.vhd")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_differential_with_wrong_parent_fails() -> Result<(), ErrorTrace> {
+        let path_buf = PathBuf::from("../test_data/vhd/ntfs-differential.vhd");
+        let source = open_local_data_source(&path_buf)?;
+        let wrong_parent = open_file("../test_data/vhd/ntfs-dynamic.vhd")?;
+
+        let result = VhdFile::open_with_parent(source, &wrong_parent);
+
+        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
     fn test_open_source_fixed() -> Result<(), ErrorTrace> {
         let file = open_file("../test_data/vhd/ntfs-parent.vhd")?;
         let source = file.open_source();
@@ -509,6 +627,19 @@ mod tests {
     }
 
     #[test]
+    fn test_open_source_capabilities_fixed() -> Result<(), ErrorTrace> {
+        let file = open_file("../test_data/vhd/ntfs-parent.vhd")?;
+        let capabilities = file.open_source().capabilities();
+
+        assert_eq!(
+            capabilities.read_concurrency,
+            DataSourceReadConcurrency::Concurrent
+        );
+        assert_eq!(capabilities.seek_cost, DataSourceSeekCost::Cheap);
+        Ok(())
+    }
+
+    #[test]
     fn test_open_source_sparse_dynamic() -> Result<(), ErrorTrace> {
         let file = open_file("../test_data/vhd/ext2.vhd")?;
         let source = file.open_source();
@@ -517,6 +648,50 @@ mod tests {
         source.read_exact_at(1024 + 56, &mut data)?;
 
         assert_eq!(data, [0x53, 0xef]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_source_capabilities_dynamic() -> Result<(), ErrorTrace> {
+        let file = open_file("../test_data/vhd/ntfs-dynamic.vhd")?;
+        let capabilities = file.open_source().capabilities();
+
+        assert_eq!(
+            capabilities.read_concurrency,
+            DataSourceReadConcurrency::Concurrent
+        );
+        assert_eq!(capabilities.seek_cost, DataSourceSeekCost::Cheap);
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_source_differential() -> Result<(), ErrorTrace> {
+        let file = open_file_with_parent(
+            "../test_data/vhd/ntfs-differential.vhd",
+            "../test_data/vhd/ntfs-parent.vhd",
+        )?;
+        let source = file.open_source();
+        let mut data = vec![0; 2];
+
+        source.read_exact_at(0, &mut data)?;
+
+        assert_eq!(data, [0x33, 0xc0]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_source_capabilities_differential() -> Result<(), ErrorTrace> {
+        let file = open_file_with_parent(
+            "../test_data/vhd/ntfs-differential.vhd",
+            "../test_data/vhd/ntfs-parent.vhd",
+        )?;
+        let capabilities = file.open_source().capabilities();
+
+        assert_eq!(
+            capabilities.read_concurrency,
+            DataSourceReadConcurrency::Concurrent
+        );
+        assert_eq!(capabilities.seek_cost, DataSourceSeekCost::Cheap);
         Ok(())
     }
 
@@ -547,6 +722,19 @@ mod tests {
 
         assert_eq!(media_offset, file.media_size());
         assert_eq!(md5_hash.as_str(), "a30f111f411d3f3d567b13f0c909e58c");
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_media_differential() -> Result<(), ErrorTrace> {
+        let file = open_file_with_parent(
+            "../test_data/vhd/ntfs-differential.vhd",
+            "../test_data/vhd/ntfs-parent.vhd",
+        )?;
+        let (media_offset, md5_hash) = read_media_from_file(&file)?;
+
+        assert_eq!(media_offset, file.media_size());
+        assert_eq!(md5_hash.as_str(), "4241cbc76e0e17517fb564238edbe415");
         Ok(())
     }
 }
