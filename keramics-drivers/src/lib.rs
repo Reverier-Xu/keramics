@@ -20,7 +20,7 @@ pub mod volume;
 
 pub use filesystem::{
     ExtFileEntry, ExtFileSystem, FatFileEntry, FatFileSystem, FatFormat, HfsFileEntry,
-    HfsFileSystem, HfsFormat, XfsFileEntry, XfsFileSystem,
+    HfsFileSystem, HfsFormat, NtfsFileEntry, NtfsFileSystem, XfsFileEntry, XfsFileSystem,
 };
 pub use image::{
     EwfImage, EwfMediaType, PdiImage, PdiImageLayer, QcowCompressionMethod, QcowEncryptionMethod,

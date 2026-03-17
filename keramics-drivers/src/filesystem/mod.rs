@@ -15,9 +15,11 @@
 pub mod ext;
 pub mod fat;
 pub mod hfs;
+pub mod ntfs;
 pub mod xfs;
 
 pub use ext::{ExtFileEntry, ExtFileSystem};
 pub use fat::{FatFileEntry, FatFileSystem, FatFormat};
 pub use hfs::{HfsFileEntry, HfsFileSystem, HfsFormat};
+pub use ntfs::{NtfsFileEntry, NtfsFileSystem};
 pub use xfs::{XfsFileEntry, XfsFileSystem};
