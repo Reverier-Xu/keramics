@@ -12,10 +12,12 @@
  * under the License.
  */
 
+pub mod ext;
 pub mod fat;
 pub mod hfs;
 pub mod xfs;
 
+pub use ext::{ExtFileEntry, ExtFileSystem};
 pub use fat::{FatFileEntry, FatFileSystem, FatFormat};
 pub use hfs::{HfsFileEntry, HfsFileSystem, HfsFormat};
 pub use xfs::{XfsFileEntry, XfsFileSystem};
