@@ -15,8 +15,10 @@ pub mod ewf;
 pub mod sparsebundle;
 pub mod sparseimage;
 pub mod splitraw;
+pub mod vhd;
 
 pub use ewf::{EwfImage, EwfMediaType};
 pub use sparsebundle::SparseBundleImage;
 pub use sparseimage::SparseImageFile;
 pub use splitraw::SplitRawImage;
+pub use vhd::{VhdDiskType, VhdFile};
