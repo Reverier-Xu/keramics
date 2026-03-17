@@ -13,6 +13,7 @@
 
 pub mod resolver;
 pub mod source;
+pub mod volume;
 
 pub use resolver::{
     LocalSourceResolver, SourceResolver, SourceResolverReference, open_local_source_resolver,
@@ -24,6 +25,7 @@ pub use source::{
     ObservedDataSource, ProbeCachedDataSource, SegmentedDataSource, SegmentedSourceSegment,
     SliceDataSource, open_local_data_source,
 };
+pub use volume::{MbrPartition, MbrVolumeSystem};
 
 #[cfg(test)]
 mod tests {
