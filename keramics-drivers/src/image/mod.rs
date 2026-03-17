@@ -19,6 +19,7 @@ pub mod splitraw;
 pub mod udif;
 pub mod vhd;
 pub mod vhdx;
+pub mod vmdk;
 
 pub use ewf::{EwfImage, EwfMediaType};
 pub use qcow::{QcowCompressionMethod, QcowEncryptionMethod, QcowFile};
@@ -28,3 +29,4 @@ pub use splitraw::SplitRawImage;
 pub use udif::{UdifCompressionMethod, UdifFile};
 pub use vhd::{VhdDiskType, VhdFile};
 pub use vhdx::VhdxFile;
+pub use vmdk::{VmdkCompressionMethod, VmdkDiskType, VmdkFile};
