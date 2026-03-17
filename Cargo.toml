@@ -20,7 +20,10 @@ members = [
 resolver = "2"
 
 [workspace.package]
-authors = ["Joachim Metz <joachim.metz@gmail.com>"]
+authors = [
+    "Joachim Metz <joachim.metz@gmail.com>",
+    "Reverier-Xu <reverier.xu@woooo.tech>",
+]
 categories = []
 edition = "2024"
 homepage = "https://github.com/keramics/keramics"
